@@ -44,7 +44,7 @@ function verifica(html, cui, denumire) {
   if (new RegExp("(RO)?" + cui + "(?!\\d)").test(cifre)) return "cui";
   const n = curata(denumire);
   const tn = curata(t);
-  if (n.length >= 5 && tn.includes(n)) return "nume";
+  if (n.length >= 5 && n.includes(" ") && tn.includes(n)) return "nume";
   return null;
 }
 
@@ -73,25 +73,26 @@ export async function site(url, env) {
   if (f.web) lista.push(f.web.replace(/^https?:\/\//, "").replace(/\/.*$/, ""));
   lista.push(...candidati(f.denumire));
   let gasit = null;
-  for (const d of [...new Set(lista)]) {
-    for (const pre of ["https://", "https://www."]) {
-      const r = await ia(pre + d);
-      incercari.push(pre + d + (r ? " → răspunde" : " → nimic"));
-      if (!r) continue;
-      const v = verifica(r.html, f.cui, f.denumire);
-      if (v) { gasit = { ...r, domeniu: d, metoda: (f.web && d === lista[0] ? "onrc+" : "nume+") + v }; break; }
-      incercari[incercari.length - 1] += " (nu e firma)";
-      break; // domeniul răspunde dar nu e firma — nu mai încercăm www
-    }
-    if (gasit) break;
+  const dom = [...new Set(lista)];
+  // în paralel: întâi fără www, apoi cu www doar unde nu a răspuns
+  const r1 = await Promise.all(dom.map(d => ia("https://" + d, 5000)));
+  const r2 = await Promise.all(dom.map((d, i) => r1[i] ? null : ia("https://www." + d, 5000)));
+  for (let i = 0; i < dom.length; i++) {
+    const r = r1[i] || r2[i];
+    const d = dom[i];
+    if (!r) { incercari.push(d + " → nimic"); continue; }
+    const v = verifica(r.html, f.cui, f.denumire);
+    if (!v) { incercari.push(d + " → răspunde, dar nu e firma"); continue; }
+    incercari.push(d + " → GĂSIT (" + v + ")");
+    if (!gasit) gasit = { ...r, domeniu: d, metoda: (f.web && i === 0 ? "onrc+" : "ghicit+") + v };
   }
   let rez = { cui: f.cui, denumire: f.denumire, gasit: !!gasit, incercari };
   if (gasit) {
     const e = extrage(gasit.html, gasit.url);
     const pagini = [];
     let text = textDin(gasit.html).slice(0, 1500);
-    for (const l of e.linkuri) {
-      const r = await ia(l.u, 5000);
+    const sub = await Promise.all(e.linkuri.map(l => ia(l.u, 5000)));
+    for (const r of sub) {
       if (!r) continue;
       const e2 = extrage(r.html, r.url);
       e.emailuri = [...new Set([...e.emailuri, ...e2.emailuri])].slice(0, 5);
