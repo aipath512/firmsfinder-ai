@@ -34,7 +34,7 @@ export const SITES = {
 <p>Datele sunt preluate ca atare din sursele oficiale și pot conține întârzieri sau erori (de exemplu, bilanțurile 2025 pot fi încă incomplete). Au caracter orientativ și nu înlocuiesc verificarea la sursă înaintea unei decizii comerciale.</p>
 <p>Rezultatele pot fi folosite pentru prospectare comercială între firme (B2B), cu respectarea legislației privind comunicările comerciale și protecția datelor. Nu sunt permise extragerea automată masivă a datelor, revânzarea lor ca bază de date sau folosirea pentru hărțuire ori spam.</p>`,
     cookies: [],
-    terti: [["Google Fonts (Google)", "încărcarea fonturilor paginii; nu setează cookies, dar browserul transmite adresa IP către Google"]],
+    terti: [["Google Fonts (Google)", "încărcarea fonturilor paginii; nu setează cookies, dar browserul transmite adresa IP către Google"], ["Brave Search API (Brave Software)", "căutare web pentru identificarea site-ului public al unei firme din registru (se transmit doar denumirea firmei și localitatea, niciodată date ale vizitatorilor)"]],
     ai_sisteme: [],
     ai_continut: "Textele paginilor au fost redactate cu asistența unui model AI (Claude, Anthropic) și verificate de echipa AiVenture înainte de publicare. Datele despre firme NU sunt generate de AI: provin direct din registrele oficiale ONRC și Ministerul Finanțelor.",
     ai_planificat: "Căutarea în limbaj natural („întrebați piața”) și găsirea firmelor asemănătoare vor folosi modele AI. La lansare, această pagină va fi actualizată, iar răspunsurile generate de AI vor fi marcate ca atare.",

@@ -1,17 +1,43 @@
-// src/site.js — Crawler propriu v0.1 (2026-10-06): găsește site-ul unei firme, îl verifică după CUI/nume, extrage datele.
-// GET /admin/site?cui=123&k=TOKEN  → caută, verifică, salvează în D1 firme_site, întoarce rezultatul.
-// Tokenul stă în D1 (config.admin_token). Fără serviciu extern: doar fetch din Worker.
+// src/site.js — Crawler propriu v0.4 (2026-10-06): găsește site-ul unei firme, îl verifică după CUI/nume, extrage datele.
+// GET /admin/site?cui=123&k=TOKEN[&fundal=1]  → o firmă: caută, verifică, salvează în D1 firme_site.
+// GET /admin/site?stat=1&k=TOKEN              → statistici (confirmat / probabil / negăsit, căutări Brave azi).
+// Cron (wrangler.toml [triggers]) → lot(): ia următoarea firmă fără rând în firme_site, în ordinea cifrei de afaceri.
+// Niveluri verificat: 1 = confirmat (CUI sau nume complet pe site), 2 = probabil (domeniu = numele exact + indicii), 0 = negăsit.
+// Căutare web gratuită: Brave Search API (secret BRAVE_KEY), plafon BRAVE_ZI căutări/zi (5 $ credit gratuit/lună ≈ 1.000).
 
 const FORME = /\b(S\.?\s?R\.?\s?L\.?|S\.?\s?A\.?|S\.?\s?C\.?\s?S\.?|S\.?\s?N\.?\s?C\.?|SRL-D|SRL|SA|PFA|II|IF|SOCIETATE|COMPANY|ROMANIA|ROMÂNIA)\b/gi;
+const BRAVE_ZI = 30;      // 30 × 31 zile = 930 < 1.000 căutări gratuite/lună
+const BUGET = 45;         // cereri externe per firmă (planul gratuit Workers permite 50/invocare)
+const PARCAT = /domain (is )?for sale|domeniul (este )?de vanzare|cumpara (acest )?domeniu|buy this domain|parked (free|domain)|sedoparking|dan\.com|afternic|this domain (name )?(may be|is) for sale|hugedomains|domain parking/i;
+const DIRECTOARE = /listafirme|termene|risco|firme\.info|firmepenet|totalfirme|infofirme|romanian-companies|confidas|demoanaf|mfinante|onrc|facebook|linkedin|instagram|youtube|tiktok|twitter|x\.com|google\.|wikipedia|paginiaurii|cylex|infobel|tripadvisor|olx|anaf\.ro|portal\.just|europages|kompass|dnb\.com|opencorporates|companiesintheuk|firmeromania|lista-firme|topfirme|endole|bizbuysell/i;
+
+// cuvinte-indiciu pe diviziuni CAEN (primele 2 cifre) — pentru nivelul „probabil”
+const INDICII = [
+  [[69, 69], /contab|fiscal|expert|audit|salariz|resurse umane|declarat|bilant|consultan/],
+  [[70, 70], /consultan|management|strategi/],
+  [[71, 71], /arhitect|proiect|inginer|topograf/],
+  [[73, 73], /publicit|marketing|agenti|media/],
+  [[62, 63], /software|aplicat|dezvolt|it |web|cloud|program/],
+  [[41, 43], /construct|renovar|instalat|amenaj|constructii/],
+  [[45, 47], /magazin|produse|vanzar|comert|distrib|livrare/],
+  [[49, 53], /transport|logistic|curierat|marfa|expediti/],
+  [[55, 56], /restaurant|hotel|cazare|pensiune|meniu|rezerv/],
+  [[86, 88], /clinic|medic|cabinet|tratament|sanatat|stomatolog/],
+  [[68, 68], /imobiliar|apartament|inchiriere|proprietat/],
+  [[85, 85], /curs|scoala|gradinit|educat|formare/],
+  [[10, 33], /productie|fabric|industri|produse/],
+];
 
 function curata(nume) {
   return nume.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(FORME, " ").replace(/[^A-Za-z0-9& ]+/g, " ")
     .replace(/&/g, " and ").replace(/\s+/g, " ").trim().toLowerCase();
 }
+const fara = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+function cuvinte(denumire) { return curata(denumire).split(" ").filter(x => x && x !== "and"); }
 
 export function candidati(denumire) {
-  const c = curata(denumire);
-  const w = c.split(" ").filter(x => x && x !== "and");
+  const w = cuvinte(denumire);
   if (!w.length) return [];
   const baze = new Set([w.join(""), w.join("-")]);
   if (w.length > 1) baze.add(w[0]);
@@ -21,11 +47,14 @@ export function candidati(denumire) {
   return out.slice(0, 12);
 }
 
-async function ia(url, ms = 6000) {
+// fetch cu timeout + buget de cereri per firmă
+async function ia(url, b, ms = 6000) {
+  if (b.n >= BUGET) return null;
+  b.n++;
   const ac = new AbortController();
   const t = setTimeout(() => ac.abort(), ms);
   try {
-    const r = await fetch(url, { redirect: "follow", signal: ac.signal, headers: { "user-agent": "Mozilla/5.0 (compatible; FirmsFinderBot/0.1; +https://1clic-ia.eu/legal/confidentialitate)", "accept": "text/html" } });
+    const r = await fetch(url, { redirect: "follow", signal: ac.signal, headers: { "user-agent": "Mozilla/5.0 (compatible; FirmsFinderBot/0.4; +https://1clic-ia.eu/legal/confidentialitate)", "accept": "text/html" } });
     const ct = r.headers.get("content-type") || "";
     if (!r.ok || !ct.includes("html")) return null;
     const html = (await r.text()).slice(0, 600000);
@@ -48,6 +77,40 @@ function verifica(html, cui, denumire) {
   return null;
 }
 
+// „probabil”: domeniul = numele exact (nu doar primul cuvânt), site real (nu parcat), cu indicii de sector sau localitate
+function probabil(r, domeniu, f) {
+  const w = cuvinte(f.denumire);
+  const baza = domeniu.replace(/^www\./, "").replace(/\.[a-z]+$/, "");
+  if (!w.length || (baza !== w.join("") && baza !== w.join("-"))) return null;
+  if (baza.replace(/-/g, "").length < 5) return null;
+  const t = fara(textDin(r.html));
+  if (PARCAT.test(t) || t.length < 400) return null;
+  const div = Number(String(f.caen || "").slice(0, 2));
+  const ind = INDICII.find(([[a, z]]) => div >= a && div <= z);
+  const motive = [];
+  if (ind && ind[1].test(t)) motive.push("sector");
+  const loc = fara(f.localitate).replace(/^(municipiul|oras|orasul|comuna|sat)\s+/, "").split(/[ ,]/)[0];
+  if (loc && loc.length >= 4 && t.includes(loc)) motive.push("localitate");
+  if (/romania|\.ro\b|\+40|\b07\d{8}\b/.test(t)) motive.push("ro");
+  return motive.length >= 2 || motive.includes("sector") ? "probabil(" + motive.join("+") + ")" : null;
+}
+
+function legaturiLegale(r) {
+  const leg = [...r.html.matchAll(/<a[^>]+href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)]
+    .map(m => { try { return { u: new URL(m[1], r.url).href, t: (m[2] + " " + m[1]).toLowerCase() }; } catch { return null; } })
+    .filter(x => x && x.u.startsWith(new URL(r.url).origin) && /contact|termen|terms|legal|confiden|privacy|gdpr|despre|about|impressum|date-firm|firma/.test(x.t));
+  return [...new Map(leg.map(l => [l.u, l])).values()];
+}
+
+// verifică un site care răspunde: CUI/nume pe prima pagină, apoi CUI pe paginile de contact/legal
+async function verificaSite(r, f, b, maxPag = 4) {
+  let v = verifica(r.html, f.cui, f.denumire);
+  if (v) return v;
+  const pg = await Promise.all(legaturiLegale(r).slice(0, maxPag).map(l => ia(l.u, b, 5000)));
+  for (const x of pg) if (x && verifica(x.html, f.cui, f.denumire) === "cui") return "cui-pagina";
+  return null;
+}
+
 function extrage(html, baza) {
   const g = (re) => { const m = html.match(re); return m ? m[1].replace(/\s+/g, " ").trim().slice(0, 300) : null; };
   const titlu = g(/<title[^>]*>([\s\S]*?)<\/title>/i);
@@ -61,51 +124,47 @@ function extrage(html, baza) {
   return { titlu, descriere, emailuri, telefoane, jsonld, linkuri: [...new Map(linkuri.map(l => [l.u, l])).values()].slice(0, 3) };
 }
 
-export async function site(url, env, ctx) {
-  const p = url.searchParams;
-  const tok = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='admin_token'").first();
-  if (!tok || p.get("k") !== tok.valoare) return new Response("Acces interzis.", { status: 403 });
-  const cui = Number(p.get("cui"));
-  if (ctx && p.get("fundal") === "1") { ctx.waitUntil(proceseaza(cui, env)); return Response.json({ pornit: true, cui }); }
-  return proceseaza(cui, env);
+// contor zilnic Brave în D1 config (cheie brave_zi = "YYYY-MM-DD:n")
+async function braveDisponibil(env) {
+  if (!env.BRAVE_KEY) return false;
+  const azi = new Date().toISOString().slice(0, 10);
+  const r = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='brave_zi'").first();
+  const [zi, n] = (r?.valoare || "").split(":");
+  return zi !== azi || Number(n) < BRAVE_ZI;
+}
+async function braveNumara(env) {
+  const azi = new Date().toISOString().slice(0, 10);
+  const r = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='brave_zi'").first();
+  const [zi, n] = (r?.valoare || "").split(":");
+  const nou = azi + ":" + (zi === azi ? Number(n) + 1 : 1);
+  await env.DB.prepare("INSERT OR REPLACE INTO config (cheie, valoare) VALUES ('brave_zi', ?)").bind(nou).run();
 }
 
-async function proceseaza(cui, env) {
-  const f = await env.DB.prepare("SELECT cui, denumire, web FROM onrc_firme WHERE cui = ?").bind(cui).first();
-  if (!f) return Response.json({ eroare: "CUI negăsit" }, { status: 404 });
-  const incercari = [];
-  const lista = [];
-  if (f.web) lista.push(f.web.replace(/^https?:\/\//, "").replace(/\/.*$/, ""));
-  lista.push(...candidati(f.denumire));
-  let gasit = null;
-  const dom = [...new Set(lista)];
-  // în paralel: întâi fără www, apoi cu www doar unde nu a răspuns
-  const r1 = await Promise.all(dom.map(d => ia("https://" + d, 5000)));
-  const r2 = await Promise.all(dom.map((d, i) => r1[i] ? null : ia("https://www." + d, 5000)));
-  for (let i = 0; i < dom.length; i++) {
-    const r = r1[i] || r2[i];
-    const d = dom[i];
-    if (!r) { incercari.push(d + " → nimic"); continue; }
-    let v = verifica(r.html, f.cui, f.denumire);
-    if (!v) {
-      // CUI-ul stă de obicei în pagina de contact / termeni / confidențialitate, nu pe prima pagină
-      const leg = [...r.html.matchAll(/<a[^>]+href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)]
-        .map(m => { try { return { u: new URL(m[1], r.url).href, t: (m[2] + " " + m[1]).toLowerCase() }; } catch { return null; } })
-        .filter(x => x && x.u.startsWith(new URL(r.url).origin) && /contact|termen|terms|legal|confiden|privacy|gdpr|despre|about|impressum|date-firm|firma/.test(x.t));
-      const uni = [...new Map(leg.map(l => [l.u, l])).values()].slice(0, 4);
-      const pg = await Promise.all(uni.map(l => ia(l.u, 5000)));
-      for (const x of pg) { if (x && verifica(x.html, f.cui, f.denumire) === "cui") { v = "cui-pagina"; break; } }
-    }
-    if (!v) { incercari.push(d + " → răspunde, dar nu e firma"); continue; }
-    incercari.push(d + " → GĂSIT (" + v + ")");
-    if (!gasit) gasit = { ...r, domeniu: d, metoda: (f.web && i === 0 ? "onrc+" : "ghicit+") + v };
-  }
+async function cautaBrave(f, env, b) {
+  const loc = (f.localitate || "").replace(/^(Municipiul|Oraş|Oras|Comuna)\s+/i, "");
+  const q = '"' + f.denumire.replace(/"/g, "") + '" ' + loc;
+  if (b.n >= BUGET) return [];
+  b.n++;
+  await braveNumara(env);
+  try {
+    const r = await fetch("https://api.search.brave.com/res/v1/web/search?count=10&country=RO&search_lang=ro&q=" + encodeURIComponent(q),
+      { headers: { "accept": "application/json", "x-subscription-token": env.BRAVE_KEY } });
+    if (!r.ok) return [{ eroare: "brave " + r.status }];
+    const j = await r.json();
+    const vazute = new Set();
+    return (j.web?.results || []).map(x => x.url).filter(u => {
+      try { const h = new URL(u).hostname.replace(/^www\./, ""); if (DIRECTOARE.test(h) || vazute.has(h)) return false; vazute.add(h); return true; } catch { return false; }
+    }).slice(0, 3);
+  } catch (e) { return [{ eroare: "brave " + e.message }]; }
+}
+
+async function salveaza(env, f, gasit, incercari, b) {
   let rez = { cui: f.cui, denumire: f.denumire, gasit: !!gasit, incercari };
   if (gasit) {
     const e = extrage(gasit.html, gasit.url);
     const pagini = [];
     let text = textDin(gasit.html).slice(0, 1500);
-    const sub = await Promise.all(e.linkuri.map(l => ia(l.u, 5000)));
+    const sub = await Promise.all(e.linkuri.map(l => ia(l.u, b, 5000)));
     for (const r of sub) {
       if (!r) continue;
       const e2 = extrage(r.html, r.url);
@@ -114,13 +173,97 @@ async function proceseaza(cui, env) {
       pagini.push(r.url);
       text += "\n---\n" + textDin(r.html).slice(0, 1200);
     }
-    rez = { ...rez, domeniu: gasit.domeniu, url: gasit.url, metoda: gasit.metoda, titlu: e.titlu, descriere: e.descriere, emailuri: e.emailuri, telefoane: e.telefoane, are_jsonld: !!e.jsonld, pagini };
+    rez = { ...rez, nivel: gasit.nivel === 1 ? "confirmat" : "probabil", domeniu: gasit.domeniu, url: gasit.url, metoda: gasit.metoda, titlu: e.titlu, descriere: e.descriere, emailuri: e.emailuri, telefoane: e.telefoane, are_jsonld: !!e.jsonld, pagini };
     await env.DB.prepare(`INSERT OR REPLACE INTO firme_site (cui, denumire, domeniu, url, verificat, metoda, incercari, titlu, descriere, emailuri, telefoane, jsonld, pagini, text_scurt, data)
-      VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`)
-      .bind(f.cui, f.denumire, gasit.domeniu, gasit.url, gasit.metoda, incercari.join("\n"), e.titlu, e.descriere, e.emailuri.join(", "), e.telefoane.join(", "), e.jsonld, pagini.join("\n"), text.slice(0, 6000)).run();
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`)
+      .bind(f.cui, f.denumire, gasit.domeniu, gasit.url, gasit.nivel, gasit.metoda, incercari.join("\n"), e.titlu, e.descriere, e.emailuri.join(", "), e.telefoane.join(", "), e.jsonld, pagini.join("\n"), text.slice(0, 6000)).run();
   } else {
+    rez.nivel = "negasit";
     await env.DB.prepare(`INSERT OR REPLACE INTO firme_site (cui, denumire, verificat, metoda, incercari, data) VALUES (?, ?, 0, 'negasit', ?, datetime('now'))`)
       .bind(f.cui, f.denumire, incercari.join("\n")).run();
   }
-  return Response.json(rez);
+  rez.cereri = b.n;
+  return rez;
+}
+
+export async function proceseaza(cui, env) {
+  const f = await env.DB.prepare(`SELECT o.cui, o.denumire, o.web, o.localitate, o.judet, m.caen_mf AS caen
+    FROM onrc_firme o LEFT JOIN mf_bilant_2024 m ON m.cui = o.cui WHERE o.cui = ?`).bind(cui).first();
+  if (!f) return { eroare: "CUI negăsit" };
+  const b = { n: 0 };
+  const incercari = [];
+  const lista = [];
+  if (f.web) lista.push(f.web.replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, ""));
+  lista.push(...candidati(f.denumire));
+  const dom = [...new Set(lista)];
+  let gasit = null, prob = null;
+
+  // 1. ghicire domeniu: întâi fără www, apoi cu www doar unde nu a răspuns
+  const r1 = await Promise.all(dom.map(d => ia("https://" + d, b, 5000)));
+  const r2 = await Promise.all(dom.map((d, i) => r1[i] ? null : ia("https://www." + d, b, 5000)));
+  for (let i = 0; i < dom.length && !gasit; i++) {
+    const r = r1[i] || r2[i];
+    const d = dom[i];
+    if (!r) { incercari.push(d + " → nimic"); continue; }
+    if (PARCAT.test(fara(textDin(r.html)))) { incercari.push(d + " → domeniu parcat"); continue; }
+    const v = await verificaSite(r, f, b, 3);
+    if (v) { incercari.push(d + " → GĂSIT (" + v + ")"); gasit = { ...r, domeniu: d, nivel: 1, metoda: (f.web && i === 0 ? "onrc+" : "ghicit+") + v }; break; }
+    const p = probabil(r, d, f);
+    if (p) { incercari.push(d + " → " + p); if (!prob) prob = { ...r, domeniu: d, nivel: 2, metoda: "ghicit+" + p }; continue; }
+    incercari.push(d + " → răspunde, dar nu e firma");
+  }
+
+  // 2. căutare web gratuită (Brave), doar dacă ghicirea nu a confirmat nimic
+  if (!gasit && await braveDisponibil(env)) {
+    const urls = await cautaBrave(f, env, b);
+    if (urls[0]?.eroare) incercari.push("căutare → " + urls[0].eroare);
+    else incercari.push("căutare → " + (urls.length ? urls.length + " rezultate" : "niciun rezultat util"));
+    for (const u of urls) {
+      if (typeof u !== "string" || gasit) continue;
+      const r = await ia(u, b, 5000);
+      const d = new URL(u).hostname.replace(/^www\./, "");
+      if (!r) { incercari.push("căutare " + d + " → nimic"); continue; }
+      const v = await verificaSite(r, f, b, 3);
+      if (v) { incercari.push("căutare " + d + " → GĂSIT (" + v + ")"); gasit = { ...r, domeniu: d, nivel: 1, metoda: "cautare+" + v }; }
+      else incercari.push("căutare " + d + " → nu e firma");
+    }
+  } else if (!gasit) incercari.push(env.BRAVE_KEY ? "căutare → plafon zilnic atins" : "căutare → fără BRAVE_KEY");
+
+  return salveaza(env, f, gasit || prob, incercari, b);
+}
+
+// lotul automat (cron): următoarea firmă activă, în ordinea cifrei de afaceri, fără rând în firme_site
+export async function lot(env, n = 1) {
+  // întâi: reîncearcă firmele negăsite care nu au avut încă acces la căutare (fără cheie / plafon atins)
+  if (await braveDisponibil(env)) {
+    const v = await env.DB.prepare(`SELECT cui FROM firme_site WHERE verificat IN (0, 2)
+      AND (incercari LIKE '%fără BRAVE_KEY%' OR incercari LIKE '%plafon zilnic%') LIMIT ?`).bind(n).all();
+    if (v.results.length) { const out = []; for (const x of v.results) out.push(await proceseaza(x.cui, env)); return out; }
+  }
+  const r = await env.DB.prepare(`SELECT m.cui FROM mf_bilant_2024 m INDEXED BY ix_mf_2024_ca
+    WHERE m.cifra_afaceri > 0 AND NOT EXISTS (SELECT 1 FROM firme_site s WHERE s.cui = m.cui)
+    ORDER BY m.cifra_afaceri DESC LIMIT ?`).bind(n).all();
+  const out = [];
+  for (const x of r.results) out.push(await proceseaza(x.cui, env));
+  return out;
+}
+
+export async function site(url, env, ctx) {
+  const p = url.searchParams;
+  const tok = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='admin_token'").first();
+  if (!tok || p.get("k") !== tok.valoare) return new Response("Acces interzis.", { status: 403 });
+  if (p.get("stat") === "1") {
+    const s = await env.DB.prepare("SELECT verificat, COUNT(*) n FROM firme_site GROUP BY verificat").all();
+    const bz = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='brave_zi'").first();
+    return Response.json({ niveluri: Object.fromEntries(s.results.map(x => [{ 0: "negasit", 1: "confirmat", 2: "probabil" }[x.verificat] ?? x.verificat, x.n])), brave_azi: bz?.valoare || null, plafon_brave_zi: BRAVE_ZI, brave_configurat: !!env.BRAVE_KEY });
+  }
+  if (p.get("lot")) {
+    const n = Math.min(3, Number(p.get("lot")) || 1);
+    if (ctx) { ctx.waitUntil(lot(env, n)); return Response.json({ pornit: true, lot: n }); }
+    return Response.json(await lot(env, n));
+  }
+  const cui = Number(p.get("cui"));
+  if (ctx && p.get("fundal") === "1") { ctx.waitUntil(proceseaza(cui, env)); return Response.json({ pornit: true, cui }); }
+  const rez = await proceseaza(cui, env);
+  return Response.json(rez, { status: rez.eroare ? 404 : 200 });
 }

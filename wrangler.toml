@@ -11,6 +11,9 @@ routes = [
   { pattern = "www.ecbtax.com/legal*", zone_name = "ecbtax.com" }
 ]
 
+[triggers]
+crons = ["*/2 * * * *"]
+
 [assets]
 directory = "./public"
 binding = "ASSETS"

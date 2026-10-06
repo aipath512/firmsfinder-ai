@@ -17,9 +17,14 @@ const JUDETE = ["Alba","Arad","Argeș","Bacău","Bihor","Bistrița-Năsăud","Bo
 
 // Worker: răspunde la /api/* și /robots.txt; pagina (public/index.html) e servită automat ca „asset”.
 import { legal } from "./legal.js";
-import { site } from "./site.js";
+import { site, lot } from "./site.js";
 
 export default {
+  // cron: o firmă la fiecare 2 minute (~720/zi), căutarea Brave plafonată separat la 30/zi
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(lot(env, 1).catch(() => null));
+  },
+
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.hostname === "www.1clic-ia.eu") return Response.redirect("https://1clic-ia.eu" + url.pathname + url.search, 301);
