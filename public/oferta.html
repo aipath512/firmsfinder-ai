@@ -1,0 +1,228 @@
+<!doctype html>
+<!-- FirmsFinder AI · public/oferta.html · v1.0 · 2026-10-06 -->
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ofertă — FirmsFinder AI</title>
+<meta name="description" content="FirmsFinder AI: căutare gratuită în firmele din România; liste de clienți potențiali cu site, email și telefon de la 99 lei; primele 20 de liste gratuite pentru fondatori.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#16202a;--muted:#5d6873;--line:#e2ddd2;--brand:#0f4c5c;--brand2:#e36414;--ok:#2d7a46;--bad:#b23a3a;--warn:#a86b00}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11161b;--card:#1a2128;--ink:#e8e4dc;--muted:#9aa4ad;--line:#2a333c;--brand:#5fb3c4;--brand2:#f08a4b;--ok:#5cbf7a;--bad:#e07070;--warn:#e0a640}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+header{padding:28px 0 8px}
+.logo{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--muted);letter-spacing:.04em}
+.logo b{color:var(--brand)}
+h1{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:clamp(28px,5vw,44px);line-height:1.1;margin:14px 0 8px}
+h1 em{font-style:normal;color:var(--brand2)}
+.sub{color:var(--muted);max-width:720px;margin:0 0 20px}
+.stats{display:flex;flex-wrap:wrap;gap:8px 22px;font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--muted);margin-bottom:22px}
+.stats span b{color:var(--ink)}
+form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+input,select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font:inherit}
+input:focus,select:focus{outline:2px solid var(--brand);outline-offset:-1px}
+.c12{grid-column:span 12}.c6{grid-column:span 6}.c4{grid-column:span 4}.c3{grid-column:span 3}
+@media(max-width:760px){.c6,.c4,.c3{grid-column:span 12}}
+.act{position:relative}
+.sug{position:absolute;z-index:5;left:0;right:0;top:100%;background:var(--card);border:1px solid var(--line);border-radius:9px;margin-top:4px;max-height:300px;overflow:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.sug div{padding:9px 11px;cursor:pointer;border-bottom:1px solid var(--line)}
+.sug div:hover,.sug div.on{background:var(--bg)}
+.sug code{font-family:"JetBrains Mono",monospace;color:var(--brand);margin-right:8px}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px}
+.chk input{width:auto}
+.btns{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+button{border:0;border-radius:9px;padding:11px 18px;font:600 15px Inter,sans-serif;cursor:pointer}
+.go{background:var(--brand);color:#fff}
+.dl{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.ex{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}
+.ex button{background:transparent;border:1px dashed var(--line);color:var(--muted);font-weight:500;font-size:13px;padding:7px 11px}
+.ex button:hover{color:var(--brand);border-color:var(--brand)}
+#info{margin:22px 0 10px;color:var(--muted);font-size:14px}
+#info b{color:var(--ink)}
+.res{display:grid;gap:10px}
+.firma{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:6px 16px}
+.firma h3{margin:0;font-size:16px}
+.meta{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted)}
+.nums{display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px;grid-column:1/-1}
+.nums div span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.tr{font-family:"JetBrains Mono",monospace;font-weight:500;font-size:13px;align-self:start;white-space:nowrap}
+.up{color:var(--ok)}.down{color:var(--bad)}
+.risc{grid-column:1/-1;font-size:12.5px;color:var(--warn)}
+.pag{display:flex;gap:8px;justify-content:center;margin:20px 0}
+.pag button{background:var(--card);border:1px solid var(--line);color:var(--ink)}
+.pag button:disabled{opacity:.4;cursor:default}
+footer{margin:40px 0 30px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+footer a{color:var(--muted)}
+.nav{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 18px;padding:14px 0;border-bottom:1px solid var(--line)}
+.nav .brand{font-family:"JetBrains Mono",monospace;font-size:14px;color:var(--muted);text-decoration:none;letter-spacing:.04em}
+.nav .brand b{color:var(--brand)}
+.nav ul{display:flex;flex-wrap:wrap;gap:4px;list-style:none;margin:0;padding:0}
+.nav a.m{display:block;padding:7px 12px;border-radius:8px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:500}
+.nav a.m:hover{background:var(--card)}
+.nav a.m.on{background:var(--brand);color:#fff}
+
+</style>
+<style>
+a{color:var(--brand)}
+.doc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:22px}
+.doc h2{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:22px;margin:0 0 8px}
+.planuri{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:8px 0 26px}
+@media(max-width:960px){.planuri{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.planuri{grid-template-columns:1fr}}
+.plan{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:8px}
+.plan.rec{border:2px solid var(--brand)}
+.plan .eti{font-family:"JetBrains Mono",monospace;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.plan h3{margin:0;font-size:18px}
+.pret{font-family:Fraunces,Georgia,serif;font-size:30px;font-weight:600;line-height:1.1}
+.pret small{font-family:Inter,sans-serif;font-size:13px;font-weight:500;color:var(--muted)}
+.plan ul{margin:4px 0 8px;padding-left:18px;font-size:14px}
+.plan li{margin:3px 0}
+.plan button{margin-top:auto}
+.go2{background:transparent;border:1px solid var(--brand);color:var(--brand)}
+.loc{font-size:12.5px;color:var(--brand2);font-weight:600}
+.pasi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;counter-reset:p}
+@media(max-width:760px){.pasi{grid-template-columns:1fr 1fr}}
+.pasi div{border-left:3px solid var(--brand);padding:4px 0 4px 12px;font-size:14px}
+.pasi b{display:block;font-size:15px}
+.serv{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:760px){.serv{grid-template-columns:1fr}}
+.serv div{border:1px dashed var(--line);border-radius:12px;padding:14px;font-size:14px}
+.serv b{display:block;font-size:15px;margin-bottom:4px}
+textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font:inherit;min-height:80px}
+#msg{margin-top:12px;font-weight:500}.ok{color:var(--ok)}.err{color:var(--bad)}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.done{text-align:center;padding:30px 10px}.done .big{font-size:44px;line-height:1;color:var(--ok)}.nr{font-family:"JetBrains Mono",monospace;font-size:18px}
+.mic{font-size:13px;color:var(--muted)}
+.c8{grid-column:span 8}@media(max-width:760px){.c8{grid-column:span 12}}
+</style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Service","name":"FirmsFinder AI — liste de clienți potențiali B2B","provider":{"@type":"Organization","name":"AiVenture S.R.L.","taxID":"51415878","email":"contact@5thelement.ai","url":"https://1clic-ia.eu/"},"areaServed":"RO","description":"Căutare gratuită în firmele active din România (ONRC + bilanțuri MF 2023–2025) și liste de clienți potențiali cu site, email și telefon publice.","offers":[{"@type":"Offer","name":"Căutare și export CSV fără contacte","price":"0","priceCurrency":"RON"},{"@type":"Offer","name":"Listă 500 firme cu contacte","price":"99","priceCurrency":"RON"},{"@type":"Offer","name":"Listă 2.000 firme cu contacte","price":"249","priceCurrency":"RON"}]}
+</script>
+</head>
+<body>
+<div class="wrap">
+<nav class="nav" aria-label="Meniu"><a class="brand" href="/">◈ <b>FirmsFinder AI</b> · by AiVenture</a><ul><li><a class="m" href="/">Căutare</a></li><li><a class="m on" href="/oferta.html">Ofertă</a></li><li><a class="m" href="/gdpr.html">Date și GDPR</a></li><li><a class="m" href="/cerere.html">Cerere de scoatere</a></li><li><a class="m" href="mailto:contact@5thelement.ai">Contact</a></li></ul></nav>
+<header>
+  <h1>Căutați gratuit. <em>Primiți lista cu contacte</em> când sunteți gata să vindeți.</h1>
+  <p class="sub">FirmsFinder AI vă arată firmele pe care nu le știți: viitorii clienți. Căutarea rămâne gratuită. Când vreți să-i contactați, comandați lista: firmele alese de dumneavoastră, cu site-ul, emailul și telefonul publicate de ele.</p>
+</header>
+
+<div class="planuri" id="planuri">
+  <div class="plan">
+    <div class="eti">Gratuit</div><h3>Căutare</h3><div class="pret">0 lei</div>
+    <ul><li>Toate firmele active cu bilanț (ONRC + MF 2023–2025)</li><li>Filtre: activitate, industrie, județ, mărime, creștere, risc</li><li>Site-ul firmei, unde l-am găsit</li><li>Export CSV până la 500 de firme, fără contacte</li></ul>
+    <button class="dl" type="button" onclick="location.href='/'">Caută acum</button>
+  </div>
+  <div class="plan rec">
+    <div class="eti">Cel mai cerut</div><h3>Listă 500 firme</h3><div class="pret">99 lei <small>/ listă</small></div>
+    <ul><li>500 de firme după criteriile dumneavoastră</li><li>Site, email și telefon, acolo unde sunt publice</li><li>Cifră de afaceri 2023–2025, salariați, profit</li><li>Marcaj „fără site” = firme invizibile online</li><li>Excel / CSV, în 1–2 zile lucrătoare</li></ul>
+    <button class="go" type="button" data-p="l500">Comandă lista de 500</button>
+  </div>
+  <div class="plan">
+    <div class="eti">Pentru echipe de vânzări</div><h3>Listă 2.000 firme</h3><div class="pret">249 lei <small>/ listă</small></div>
+    <ul><li>Tot ce conține lista de 500</li><li>2.000 de firme, mai multe județe sau activități</li><li>Împărțire pe segmente (mărime, creștere)</li><li>Excel / CSV, în 1–2 zile lucrătoare</li></ul>
+    <button class="go2" type="button" data-p="l2000">Comandă lista de 2.000</button>
+  </div>
+  <div class="plan">
+    <div class="eti">Primii 20</div><h3>Fondator</h3><div class="pret">0 lei <small>/ prima listă</small></div>
+    <ul><li>O listă de 500 de firme cu contacte, gratuit</li><li>În schimb: o părere sinceră după ce o folosiți</li><li>Și acordul de a vă cita (cu numele firmei)</li></ul>
+    <div class="loc" id="loc">20 de locuri</div>
+    <button class="go2" type="button" data-p="fondator">Vreau loc de fondator</button>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>Cum funcționează</h2>
+  <div class="pasi">
+    <div><b>1. Căutați</b>Găsiți segmentul pe pagina de căutare: activitate, județ, mărime.</div>
+    <div><b>2. Comandați</b>Completați formularul de mai jos. Primiți imediat un număr de comandă.</div>
+    <div><b>3. Factură</b>AiVenture S.R.L. vă trimite factura pe email. Plata se face prin transfer bancar.</div>
+    <div><b>4. Lista</b>După plată, primiți lista pe email, în 1–2 zile lucrătoare.</div>
+  </div>
+  <p class="mic" style="margin-top:14px">Contactele provin din registrul public (ONRC), bilanțurile publice (MF) și site-urile publice ale firmelor. Nu cumpărăm baze de date și nu includem persoane fizice autorizate (PFA, II, IF). Detalii: <a href="/gdpr.html">Date și GDPR</a>.</p>
+</div>
+
+<div class="doc">
+  <h2>Pasul următor: firmele care nu se văd</h2>
+  <p>În fiecare listă marcăm firmele fără site sau invizibile pentru asistenții AI. Dacă firma dumneavoastră este una dintre ele, AiVenture o face vizibilă:</p>
+  <div class="serv">
+    <div><b>AI-LENS</b>Vedeți ce înțelege un asistent AI despre firma dumneavoastră și ce lipsește.</div>
+    <div><b>AUDIT-AI · 3WEBOBS</b>Măsurăm semnalele pe care Google, asistenții AI și agenții AI le citesc pe site.</div>
+    <div><b>AI-READY INJECTOR</b>Adăugăm la edge, fără să refacem site-ul, stratul pe care mașinile îl pot citi.</div>
+  </div>
+  <p style="margin-top:12px"><button class="go2" type="button" data-p="servicii">Vreau o discuție despre servicii</button></p>
+</div>
+
+<div id="ecran-form" class="doc">
+  <h2 id="comanda">Formular de comandă</h2>
+  <form id="f" autocomplete="on">
+    <div class="c6"><label for="pachet">Pachet *</label>
+      <select id="pachet"><option value="l500">Listă 500 firme cu contacte — 99 lei</option><option value="l2000">Listă 2.000 firme cu contacte — 249 lei</option><option value="fondator">Fondator (primii 20) — listă 500 gratuită</option><option value="servicii">Discuție servicii AiVenture</option></select></div>
+    <div class="c6"><label for="activitate">Ce firme căutați? *</label><input id="activitate" placeholder="ex. CAEN 6920 contabilitate, sau „construcții”"></div>
+    <div class="c4"><label for="judet">Județ</label><input id="judet" placeholder="toate, sau ex. București, Cluj"></div>
+    <div class="c8"><label for="criterii">Alte criterii</label><input id="criterii" placeholder="ex. 5–50 salariați, cifră de afaceri în creștere, cu site"></div>
+    <div class="c4"><label for="nume">Numele dumneavoastră *</label><input id="nume" autocomplete="name"></div>
+    <div class="c4"><label for="firma">Firma *</label><input id="firma" autocomplete="organization"></div>
+    <div class="c4"><label for="cui">CUI (pentru factură)</label><input id="cui" inputmode="numeric"></div>
+    <div class="c6"><label for="email">Email *</label><input id="email" type="email" autocomplete="email"></div>
+    <div class="c6"><label for="telefon">Telefon / WhatsApp</label><input id="telefon" type="tel" autocomplete="tel"></div>
+    <div class="c12"><label for="mesaj">Mesaj</label><textarea id="mesaj" maxlength="1000"></textarea></div>
+    <div class="hp" aria-hidden="true"><label for="website">Website</label><input id="website" tabindex="-1" autocomplete="off"></div>
+    <div class="c12"><label class="chk" style="text-transform:none;font-weight:500;letter-spacing:0"><input type="checkbox" id="termeni"> Am citit și accept <a href="/legal/termeni" target="_blank">Termenii și condițiile</a> și <a href="/legal/confidentialitate" target="_blank">Politica de confidențialitate</a>. *</label></div>
+    <div class="c12 btns"><button class="go" type="submit">Trimite comanda</button><span class="mic">Nu plătiți nimic acum. Primiți întâi factura.</span></div>
+  </form>
+  <div id="msg"></div>
+</div>
+
+<div id="ecran-ok" class="doc done" hidden>
+  <div class="big">✓</div>
+  <h2>Comanda a fost trimisă</h2>
+  <p>Număr comandă: <span class="nr" id="ok-nr"></span></p>
+  <p id="ok-p"></p>
+  <p>Vă scriem pe email în cel mult o zi lucrătoare. Păstrați numărul comenzii.</p>
+  <p><a href="/">← Înapoi la căutare</a></p>
+</div>
+
+<footer>
+  <a href="/">Căutare</a> · <a href="/oferta.html">Ofertă</a> · <a href="/gdpr.html">Datele firmei dumneavoastră</a> · Contact: <a href="mailto:contact@5thelement.ai">contact@5thelement.ai</a>
+  <br>© AiVenture S.R.L. (CUI 51415878) · FirmsFinder AI v1.0 · Factură emisă de AiVenture S.R.L.
+  <br><a href="/legal/confidentialitate">Confidențialitate</a> · <a href="/legal/termeni">Termeni și condiții</a> · <a href="/legal/cookies">Politica de cookies</a> · <a href="/legal/ai-act">Transparență AI (AI Act)</a> · <a href="/legal/cerere">Cerere date personale</a>
+</footer>
+</div>
+<script src="/legal/lead.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const q = new URLSearchParams(location.search);
+if (q.get("pachet")) $("#pachet").value = q.get("pachet");
+if (q.get("activitate")) $("#activitate").value = q.get("activitate");
+if (q.get("judet")) $("#judet").value = q.get("judet");
+if (q.get("criterii")) $("#criterii").value = q.get("criterii");
+document.querySelectorAll("button[data-p]").forEach(b => b.addEventListener("click", () => {
+  $("#pachet").value = b.dataset.p; $("#comanda").scrollIntoView({ behavior: "smooth" }); setTimeout(() => $("#activitate").focus(), 400);
+}));
+fetch("/api/oferta").then(r => r.json()).then(d => {
+  const n = d.fondatori_ramase;
+  $("#loc").textContent = n > 0 ? "Mai sunt " + n + " din 20 de locuri" : "Locurile de fondator s-au ocupat";
+  if (n <= 0) { const o = $("#pachet option[value=fondator]"); if (o) o.disabled = true; document.querySelector("button[data-p=fondator]").disabled = true; }
+}).catch(() => {});
+$("#f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const m = $("#msg"), b = $("#f button[type=submit]"); m.className = ""; m.textContent = "Se trimite…"; b.disabled = true;
+  const v = id => $("#" + id).value;
+  try {
+    const r = await fetch("/api/comanda", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pachet: v("pachet"), activitate: v("activitate"), judet: v("judet"), criterii: v("criterii"), nume: v("nume"), firma: v("firma"), cui: v("cui"), email: v("email"), telefon: v("telefon"), mesaj: v("mesaj"), website: v("website"), termeni: $("#termeni").checked }) });
+    const d = await r.json();
+    if (!r.ok) { m.className = "err"; m.textContent = d.eroare || "Eroare."; b.disabled = false; return; }
+    $("#ok-nr").textContent = d.nr; $("#ok-p").textContent = "Pachet: " + d.pachet;
+    $("#ecran-form").hidden = true; $("#ecran-ok").hidden = false; $("#ecran-ok").scrollIntoView();
+  } catch (x) { m.className = "err"; m.textContent = "Nu s-a putut trimite. Scrieți-ne la contact@5thelement.ai."; b.disabled = false; }
+});
+</script>
+</body>
+</html>

@@ -33,6 +33,8 @@ export default {
       if (url.pathname === "/api/stari") return await stari(env);
       if (url.pathname === "/api/cauta") return await cauta(url, env);
       if (url.pathname === "/api/opozitie" && request.method === "POST") return await opozitie(request, env);
+      if (url.pathname === "/api/comanda" && request.method === "POST") return await comanda(request, env);
+      if (url.pathname === "/api/oferta") return await ofertaStare(env);
       if (url.pathname === "/legal" || url.pathname.startsWith("/legal/")) return await legal(request, env, url);
       if (url.pathname === "/admin/site") return await site(url, env, ctx);
       if (url.pathname === "/termeni.html") return Response.redirect(url.origin + "/legal/termeni", 301);
@@ -139,8 +141,9 @@ async function cauta(url, env) {
   const sql = `SELECT f.cui, f.denumire, f.forma_juridica, f.persoana_fizica, f.judet, f.localitate, f.data_inmatriculare, f.coduri_stare, f.web,
       a.cifra_afaceri AS ca_2023, b.cifra_afaceri AS ca_2024, c.cifra_afaceri AS ca_2025,
       a.salariati AS sal_2023, b.salariati AS sal_2024, c.salariati AS sal_2025,
-      b.profit_net AS profit_2024, b.pierdere_neta AS pierdere_2024
-    ${DIN} ORDER BY ${ordine} LIMIT ${limita} OFFSET ${offset}`;
+      b.profit_net AS profit_2024, b.pierdere_neta AS pierdere_2024,
+      s.verificat AS site_v, s.domeniu AS site, (COALESCE(s.emailuri,'') <> '') AS are_email, (COALESCE(s.telefoane,'') <> '') AS are_tel
+    ${DIN.replace("WHERE", "LEFT JOIN firme_site s ON s.cui = b.cui WHERE")} ORDER BY ${ordine} LIMIT ${limita} OFFSET ${offset}`;
 
   const [rez, tot] = await Promise.all([
     env.DB.prepare(sql).bind(...valori).all(),
@@ -150,7 +153,7 @@ async function cauta(url, env) {
   // PFA / II / IF = persoane fizice: identitatea (nume, CUI, site) nu pleacă din server; doar o referință pentru cerere de identificare
   for (const r of rez.results) if (r.persoana_fizica) {
     r.referinta = "P-" + ((r.cui ^ 0x5A5A5A) >>> 0).toString(36).toUpperCase();
-    r.denumire = r.forma_juridica + " · identitate ascunsă"; r.cui = null; r.web = null; r.mascat = 1;
+    r.denumire = r.forma_juridica + " · identitate ascunsă"; r.cui = null; r.web = null; r.site = null; r.mascat = 1;
   }
   for (const r of rez.results) delete r.persoana_fizica;
 
@@ -229,4 +232,66 @@ async function emailCerere(env, c) {
     const corp = await r.text();
     return (r.ok ? "OK " : "EROARE " + r.status + " ") + corp;
   } catch (e) { return "EXCEPTIE " + String(e); }
+}
+
+
+// ── Comenzi „Listă de clienți potențiali cu contacte” ─────────────────────────
+// Salvate în KV (LEADS, cheie comanda:<site>:<iso>:<nr>) + email la contact@5thelement.ai. Plată manuală: factură AiVenture → transfer.
+const PACHETE = { "l500": "Listă 500 firme cu contacte — 99 lei", "l2000": "Listă 2.000 firme cu contacte — 249 lei", "fondator": "Fondator (primii 20) — listă 500 gratuită", "servicii": "Discuție servicii AiVenture (AI-LENS / AUDIT-AI / INJECTOR)" };
+const LOCURI_FONDATORI = 20;
+
+async function ofertaStare(env) {
+  const r = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='fondatori_n'").first();
+  const n = Number(r?.valoare || 0);
+  return json({ fondatori_ramase: Math.max(0, LOCURI_FONDATORI - n), pachete: PACHETE });
+}
+
+async function comanda(request, env) {
+  let d;
+  try { d = await request.json(); } catch { return json({ eroare: "Cerere invalidă." }, 400); }
+  if (d.website) return json({ ok: true, nr: "FF-CMD" });            // honeypot
+  const t = (v, n) => String(v ?? "").trim().slice(0, n);
+  const c = {
+    pachet: t(d.pachet, 20), activitate: t(d.activitate, 200), judet: t(d.judet, 60), criterii: t(d.criterii, 500),
+    nume: t(d.nume, 120), firma: t(d.firma, 160), cui: t(d.cui, 14).replace(/^RO/i, "").replace(/\s/g, ""),
+    email: t(d.email, 160), telefon: t(d.telefon, 30), mesaj: t(d.mesaj, 1000),
+  };
+  if (!PACHETE[c.pachet]) return json({ eroare: "Alegeți un pachet." }, 400);
+  if (c.nume.length < 3) return json({ eroare: "Scrieți numele dumneavoastră." }, 400);
+  if (c.firma.length < 2) return json({ eroare: "Scrieți numele firmei." }, 400);
+  if (c.cui && !/^\d{2,10}$/.test(c.cui)) return json({ eroare: "CUI invalid (doar cifre)." }, 400);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) return json({ eroare: "Adresă de email invalidă." }, 400);
+  if (c.pachet !== "servicii" && c.activitate.length < 2) return json({ eroare: "Spuneți-ne ce firme căutați (activitate sau industrie)." }, 400);
+  if (!d.termeni) return json({ eroare: "Bifați acordul cu termenii și politica de confidențialitate." }, 400);
+  if (c.pachet === "fondator") {
+    const r = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='fondatori_n'").first();
+    const n = Number(r?.valoare || 0);
+    if (n >= LOCURI_FONDATORI) return json({ eroare: "Cele 20 de locuri de fondator s-au ocupat. Alegeți lista de 500 (99 lei)." }, 409);
+    await env.DB.prepare("INSERT OR REPLACE INTO config (cheie, valoare) VALUES ('fondatori_n', ?)").bind(String(n + 1)).run();
+  }
+  const acum = new Date(), iso = acum.toISOString();
+  const nr = "FF-CMD-" + iso.slice(0, 10).replace(/-/g, "") + "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+  const rec = { nr, data: iso, site: new URL(request.url).hostname, pachet: c.pachet, pachet_text: PACHETE[c.pachet], ...c,
+    acord: { termeni: true, text: "Am citit și accept Termenii și condițiile și Politica de confidențialitate.", versiune: "v1.0 · 2026-10-06" },
+    ip_tara: request.headers.get("cf-ipcountry") || null, stare: "noua" };
+  await env.LEADS.put("comanda:" + rec.site + ":" + iso + ":" + nr, JSON.stringify(rec));
+  let email_status = "LIPSA RESEND_API_KEY";
+  if (env.RESEND_API_KEY) {
+    const text = ["Comandă nouă FirmsFinder AI", "", "Nr.: " + nr, "Pachet: " + PACHETE[c.pachet], "",
+      "Ce caută: " + (c.activitate || "—"), "Județ: " + (c.judet || "toate"), "Alte criterii: " + (c.criterii || "—"), "",
+      "Client: " + c.nume + " · " + c.firma + (c.cui ? " (CUI " + c.cui + ")" : ""), "Email: " + c.email, "Telefon: " + (c.telefon || "—"),
+      "Mesaj: " + (c.mesaj || "—"), "",
+      c.pachet === "fondator" ? "FONDATOR: listă gratuită în schimbul unei păreri sincere și al acordului de a fi citat." : (c.pachet === "servicii" ? "Discuție servicii: răspundeți direct la acest email." : "Pași: emiteți factura AiVenture → după plată, cereți-i lui Claude lista („generează lista pentru " + nr + "”) → trimiteți-o clientului."),
+      "", "Salvat în KV firmsfinder-leads, cheia comanda:…:" + nr].join("\n");
+    try {
+      const r = await fetch("https://api.resend.com/emails", { method: "POST",
+        headers: { "authorization": "Bearer " + env.RESEND_API_KEY, "content-type": "application/json" },
+        body: JSON.stringify({ from: env.FROM_EMAIL || "FirmsFinder AI <no-reply@eu-ai-act-ready.eu>", to: ["contact@5thelement.ai"], reply_to: c.email,
+          subject: "FirmsFinder AI — comandă " + nr + " — " + PACHETE[c.pachet] + " — " + c.firma, text }) });
+      email_status = (r.ok ? "OK " : "EROARE " + r.status + " ") + (await r.text()).slice(0, 200);
+    } catch (e) { email_status = "EXCEPTIE " + String(e); }
+    rec.email_status = email_status;
+    await env.LEADS.put("comanda:" + rec.site + ":" + iso + ":" + nr, JSON.stringify(rec));
+  }
+  return json({ ok: true, nr, pachet: PACHETE[c.pachet], email_trimis: email_status.startsWith("OK") });
 }

@@ -111,11 +111,13 @@ footer a{color:var(--muted)}
 
 .blur{filter:blur(6px);user-select:none}
 .ident{font-weight:600}
+.sitel{grid-column:1/-1;font-size:13px}.sitel a{color:var(--brand)}.sv{font-weight:600}.sv.ok{color:var(--ok)}.sv.pr{color:var(--warn)}.sv.no{color:var(--muted)}.mic{color:var(--muted)}.cl{font-weight:600}
+.cta{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--brand);border-radius:12px;padding:12px 16px;margin:0 0 12px}.cta a{background:var(--brand);color:#fff;text-decoration:none;padding:9px 14px;border-radius:9px;font-weight:600}
 </style>
 </head>
 <body>
 <div class="wrap">
-<nav class="nav" aria-label="Meniu"><a class="brand" href="/">◈ <b>FirmsFinder AI</b> · by AiVenture</a><ul><li><a class="m on" href="/">Căutare</a></li><li><a class="m" href="/gdpr.html">Date și GDPR</a></li><li><a class="m" href="/cerere.html">Cerere de scoatere</a></li><li><a class="m" href="mailto:contact@5thelement.ai">Contact</a></li></ul></nav>
+<nav class="nav" aria-label="Meniu"><a class="brand" href="/">◈ <b>FirmsFinder AI</b> · by AiVenture</a><ul><li><a class="m on" href="/">Căutare</a></li><li><a class="m" href="/oferta.html">Ofertă</a></li><li><a class="m" href="/gdpr.html">Date și GDPR</a></li><li><a class="m" href="/cerere.html">Cerere de scoatere</a></li><li><a class="m" href="mailto:contact@5thelement.ai">Contact</a></li></ul></nav>
 <header>
   <h1>Descoperiți firmele pe care nu le știți: <em>viitorii clienți.</em></h1>
   <p class="en">Find the companies behind the opportunities. <span>· Azi: România, pentru oameni. În curând: AI, agenți și Europa.</span></p>
@@ -243,13 +245,25 @@ async function cauta() {
   total = d.total;
   const sec = ((performance.now() - t0) / 1000).toLocaleString("ro-RO", { maximumFractionDigits: 2 });
   $("#info").innerHTML = "<b>" + (total > 5000 ? "peste 5.000" : lei(total)) + "</b> firme găsite" + (SECTOR ? " (ordonate după cifra de afaceri)" : "") + " în " + sec + " s" + (total > d.pe_pagina ? " · pagina " + pagina + " din " + Math.min(Math.ceil(total / d.pe_pagina), 20) : "");
-  $("#res").innerHTML = d.rezultate.map(card).join("") || "<p>Nicio firmă nu corespunde. Lărgiți filtrele (de ex. scoateți localitatea sau evoluția).</p>";
+  const ctaQ = new URLSearchParams({ pachet: "l500", activitate: ($("#act").value || "") + ($("#caen").value ? " (CAEN " + $("#caen").value + ")" : ""), judet: $("#judet").value || "", criterii: [$("#loc").value, $("#smin").value && "min. " + $("#smin").value + " salariați", $("#trend").value === "up" ? "în creștere" : ""].filter(Boolean).join(", ") });
+  const cta = d.rezultate.length ? '<div class="cta"><span><b>Vreți aceste firme cu email și telefon?</b> Lista cu contacte: 500 de firme pentru 99 lei. Primii 20 o primesc gratuit.</span><a href="/oferta.html?' + ctaQ + '#comanda">Comandă lista</a></div>' : "";
+  $("#res").innerHTML = (d.rezultate.length ? cta : "") + d.rezultate.map(card).join("") || "<p>Nicio firmă nu corespunde. Lărgiți filtrele (de ex. scoateți localitatea sau evoluția).</p>";
   const nrPag = Math.min(Math.ceil(total / d.pe_pagina), 20);
   if (nrPag > 1) {
     $("#pag").innerHTML = '<button id="pp"' + (pagina <= 1 ? " disabled" : "") + '>← Înapoi</button><button id="pn"' + (pagina >= nrPag ? " disabled" : "") + ">Înainte →</button>";
     $("#pp").onclick = () => { pagina--; cauta(); scrollTo(0, $("#info").offsetTop - 10); };
     $("#pn").onclick = () => { pagina++; cauta(); scrollTo(0, $("#info").offsetTop - 10); };
   }
+}
+function siteLinie(x) {
+  if (x.mascat) return "";
+  let t;
+  if (x.site_v === 1) t = '<span class="sv ok">● site confirmat</span> <a href="https://' + esc(x.site) + '" target="_blank" rel="noopener nofollow">' + esc(x.site) + "</a>";
+  else if (x.site_v === 2) t = '<span class="sv pr">◐ site probabil</span> <a href="https://' + esc(x.site) + '" target="_blank" rel="noopener nofollow">' + esc(x.site) + "</a>";
+  else if (x.site_v === 0) t = '<span class="sv no">○ fără site găsit</span> <span class="mic">— firmă invizibilă online</span>';
+  else return '<div class="sitel"><span class="mic">site: în curs de verificare</span></div>';
+  const c = [x.are_email ? "email" : "", x.are_tel ? "telefon" : ""].filter(Boolean);
+  return '<div class="sitel">' + t + (c.length ? ' · <a class="cl" href="/oferta.html?pachet=l500&activitate=' + encodeURIComponent($("#act").value || SECTOR || "") + '">' + c.join(" și ") + " în lista cu contacte</a>" : "") + "</div>";
 }
 function card(x) {
   const fin = x.ca_2025 ?? x.ca_2024, start = x.ca_2023;
@@ -263,7 +277,7 @@ function card(x) {
     ? '<h3><span class="blur" aria-hidden="true">Xxxxxxx Xxxxxxxxx</span> <small>' + esc(x.forma_juridica) + '</small></h3><div class="meta">Persoană fizică autorizată · identitate protejată · ref. ' + esc(x.referinta) + ' · <a class="ident" href="mailto:contact@5thelement.ai?subject=' + encodeURIComponent("Identificare FirmsFinder " + x.referinta) + '&body=' + encodeURIComponent("Bună ziua,\n\nDoresc identificarea firmei cu referința " + x.referinta + " (" + x.forma_juridica + ", " + (x.localitate || "") + ").\n\nNume:\nFirma mea / CUI:\nScopul solicitării:\n") + '">Solicitați identificarea</a> · ' + esc(x.localitate || "") + (x.judet && x.judet !== "București" ? ", " + esc(x.judet) : "") + " · din " + esc((x.data_inmatriculare || "").slice(0, 4)) + "</div>"
     : '<h3>' + esc(x.denumire) + '</h3><div class="meta">CUI ' + x.cui + " · " + esc(x.forma_juridica || "") + " · " + esc(x.localitate || "") + (x.judet && x.judet !== "București" ? ", " + esc(x.judet) : "") + " · din " + esc((x.data_inmatriculare || "").slice(0, 4)) + "</div>";
   return '<div class="firma"><div>' + cap + "</div>" + tr +
-    '<div class="nums"><div><span>Cifră afaceri 2023</span>' + mil(x.ca_2023) + '</div><div><span>2024</span>' + mil(x.ca_2024) + '</div><div><span>2025</span>' + mil(x.ca_2025) + '</div><div><span>Salariați 2024 → 2025</span>' + (x.sal_2024 ?? "—") + " → " + (x.sal_2025 ?? "—") + '</div><div><span>Profit net 2024</span>' + profit + "</div></div>" + risc + "</div>";
+    '<div class="nums"><div><span>Cifră afaceri 2023</span>' + mil(x.ca_2023) + '</div><div><span>2024</span>' + mil(x.ca_2024) + '</div><div><span>2025</span>' + mil(x.ca_2025) + '</div><div><span>Salariați 2024 → 2025</span>' + (x.sal_2024 ?? "—") + " → " + (x.sal_2025 ?? "—") + '</div><div><span>Profit net 2024</span>' + profit + "</div></div>" + siteLinie(x) + risc + "</div>";
 }
 $("#f").addEventListener("submit", e => { e.preventDefault(); pagina = 1; cauta(); });
 $("#csv").addEventListener("click", () => { if (verifica()) location.href = "/api/cauta?" + parametri({ format: "csv" }); });
