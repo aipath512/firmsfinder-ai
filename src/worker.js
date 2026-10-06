@@ -21,6 +21,7 @@ export default {
       if (url.pathname === "/api/caen") return await caen(url, env);
       if (url.pathname === "/api/stari") return await stari(env);
       if (url.pathname === "/api/cauta") return await cauta(url, env);
+      if (url.pathname === "/api/opozitie" && request.method === "POST") return await opozitie(request, env);
       if (url.pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /api/\n", { headers: { "content-type": "text/plain" } });
       if (url.pathname.startsWith("/api/")) return json({ eroare: "Adresă necunoscută." }, 404);
     } catch (e) {
@@ -141,3 +142,25 @@ async function cauta(url, env) {
   return json({ total: tot ? tot.n : 0, pagina, pe_pagina: PE_PAGINA, rezultate: rez.results });
 }
 
+
+// Cerere de opoziție / ștergere (GDPR art. 17 și 21). Se înregistrează ca „noua”;
+// excluderea efectivă (onrc_excluderi) se face după verificare, ca nimeni să nu poată scoate firma altcuiva.
+async function opozitie(request, env) {
+  let d;
+  try { d = await request.json(); } catch { return json({ eroare: "Cerere invalidă." }, 400); }
+  const t = (v, n) => String(v ?? "").trim().slice(0, n);
+  const cui = t(d.cui, 12).replace(/^RO/i, "").replace(/\s/g, "");
+  const nume = t(d.nume, 120), email = t(d.email, 160), calitate = t(d.calitate, 60), motiv = t(d.motiv, 1000);
+  if (!/^\d{2,10}$/.test(cui)) return json({ eroare: "CUI invalid (doar cifre, fără RO)." }, 400);
+  if (nume.length < 3) return json({ eroare: "Scrieți numele dumneavoastră." }, 400);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ eroare: "Adresă de email invalidă." }, 400);
+  if (!d.acord) return json({ eroare: "Bifați confirmarea." }, 400);
+  const firma = await env.DB.prepare("SELECT denumire FROM onrc_firme WHERE cui = ? LIMIT 1").bind(Number(cui)).first();
+  if (!firma) return json({ eroare: "Nu găsim acest CUI printre firmele active din bază." }, 404);
+  const deja = await env.DB.prepare("SELECT COUNT(*) AS n FROM cereri_gdpr WHERE cui = ? AND email = ? AND data > datetime('now','-1 day')")
+    .bind(Number(cui), email).first();
+  if (deja && deja.n > 0) return json({ ok: true, denumire: firma.denumire, repetat: true });
+  await env.DB.prepare("INSERT INTO cereri_gdpr (data, cui, denumire, nume, email, calitate, motiv) VALUES (datetime('now'), ?, ?, ?, ?, ?, ?)")
+    .bind(Number(cui), firma.denumire, nume, email, calitate, motiv).run();
+  return json({ ok: true, denumire: firma.denumire });
+}
