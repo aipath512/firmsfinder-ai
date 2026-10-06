@@ -193,7 +193,7 @@ async function salveaza(env, f, gasit, incercari, b) {
   return rez;
 }
 
-export async function proceseaza(cui, env) {
+export async function proceseaza(cui, env, cuBrave = true) {
   const f = await env.DB.prepare(`SELECT o.cui, o.denumire, o.web, o.localitate, o.judet, m.caen_mf AS caen
     FROM onrc_firme o LEFT JOIN mf_bilant_2024 m ON m.cui = o.cui WHERE o.cui = ?`).bind(cui).first();
   if (!f) return { eroare: "CUI negăsit" };
@@ -221,7 +221,7 @@ export async function proceseaza(cui, env) {
   }
 
   // 2. căutare web gratuită (Brave), doar dacă ghicirea nu a confirmat nimic
-  if (!gasit && await braveDisponibil(env)) {
+  if (!gasit && cuBrave && await braveDisponibil(env)) {
     const urls = await cautaBrave(f, env, b);
     if (urls[0]?.eroare) incercari.push("căutare → " + urls[0].eroare);
     else incercari.push("căutare → " + (urls.length ? urls.length + " rezultate" : "niciun rezultat util"));
@@ -234,7 +234,7 @@ export async function proceseaza(cui, env) {
       if (v) { incercari.push("căutare " + d + " → GĂSIT (" + v + ")"); gasit = { ...r, domeniu: d, nivel: 1, metoda: "cautare+" + v }; }
       else incercari.push("căutare " + d + " → nu e firma");
     }
-  } else if (!gasit) incercari.push(env.BRAVE_KEY ? "căutare → plafon zilnic atins" : "căutare → fără BRAVE_KEY");
+  } else if (!gasit) incercari.push(!env.BRAVE_KEY ? "căutare → fără BRAVE_KEY" : cuBrave ? "căutare → plafon zilnic atins" : "căutare → amânată (lot)");
 
   return salveaza(env, f, gasit || prob, incercari, b);
 }
@@ -244,14 +244,15 @@ export async function lot(env, n = 1) {
   // întâi: reîncearcă firmele negăsite care nu au avut încă acces la căutare (fără cheie / plafon atins)
   if (await braveDisponibil(env)) {
     const v = await env.DB.prepare(`SELECT cui FROM firme_site WHERE verificat IN (0, 2)
-      AND (incercari LIKE '%fără BRAVE_KEY%' OR incercari LIKE '%plafon zilnic%' OR incercari LIKE '%căutare → brave %') LIMIT ?`).bind(n).all();
-    if (v.results.length) { const out = []; for (const x of v.results) out.push(await proceseaza(x.cui, env)); return out; }
+      AND (incercari LIKE '%fără BRAVE_KEY%' OR incercari LIKE '%amânată (lot)%' OR incercari LIKE '%plafon zilnic%' OR incercari LIKE '%căutare → brave %') LIMIT ?`).bind(n).all();
+    if (v.results.length) return [await proceseaza(v.results[0].cui, env, true)];
   }
   const r = await env.DB.prepare(`SELECT m.cui FROM mf_bilant_2024 m INDEXED BY ix_mf_2024_ca
     WHERE m.cifra_afaceri > 0 AND EXISTS (SELECT 1 FROM onrc_firme o WHERE o.cui = m.cui AND o.top = 1) AND NOT EXISTS (SELECT 1 FROM firme_site s WHERE s.cui = m.cui)
     ORDER BY m.cifra_afaceri DESC LIMIT ?`).bind(n).all();
   const out = [];
-  for (const x of r.results) out.push(await proceseaza(x.cui, env));
+  // în paralel; doar prima firmă din lot poate folosi Brave (contorul zilnic rămâne exact)
+  out.push(...await Promise.all(r.results.map((x, i) => proceseaza(x.cui, env, i === 0).catch(e => ({ cui: x.cui, eroare: e.message })))));
   return out;
 }
 
@@ -265,7 +266,7 @@ export async function site(url, env, ctx) {
     return Response.json({ niveluri: Object.fromEntries(s.results.map(x => [{ 0: "negasit", 1: "confirmat", 2: "probabil" }[x.verificat] ?? x.verificat, x.n])), brave_azi: bz?.valoare || null, plafon_brave_zi: BRAVE_ZI, brave_configurat: !!env.BRAVE_KEY });
   }
   if (p.get("lot")) {
-    const n = Math.min(3, Number(p.get("lot")) || 1);
+    const n = Math.min(10, Number(p.get("lot")) || 1);
     if (ctx) { ctx.waitUntil(lot(env, n)); return Response.json({ pornit: true, lot: n }); }
     return Response.json(await lot(env, n));
   }

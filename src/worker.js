@@ -20,9 +20,9 @@ import { legal } from "./legal.js";
 import { site, lot } from "./site.js";
 
 export default {
-  // cron: o firmă la fiecare 2 minute (~720/zi), căutarea Brave plafonată separat la 30/zi
+  // cron: 10 firme în paralel la fiecare minut (~14.400/zi); Brave plafonat separat la 30/zi
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(lot(env, 1).catch(() => null));
+    ctx.waitUntil(lot(env, 10).catch(() => null));
   },
 
   async fetch(request, env, ctx) {

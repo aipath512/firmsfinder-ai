@@ -12,7 +12,7 @@ routes = [
 ]
 
 [triggers]
-crons = ["*/2 * * * *"]
+crons = ["* * * * *"]
 
 [assets]
 directory = "./public"
