@@ -58,6 +58,14 @@ button{border:0;border-radius:9px;padding:11px 18px;font:600 15px Inter,sans-ser
 .pag button:disabled{opacity:.4;cursor:default}
 footer{margin:40px 0 30px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
 footer a{color:var(--muted)}
+.nav{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 18px;padding:14px 0;border-bottom:1px solid var(--line)}
+.nav .brand{font-family:"JetBrains Mono",monospace;font-size:14px;color:var(--muted);text-decoration:none;letter-spacing:.04em}
+.nav .brand b{color:var(--brand)}
+.nav ul{display:flex;flex-wrap:wrap;gap:4px;list-style:none;margin:0;padding:0}
+.nav a.m{display:block;padding:7px 12px;border-radius:8px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:500}
+.nav a.m:hover{background:var(--card)}
+.nav a.m.on{background:var(--brand);color:#fff}
+
 </style>
 <style>
 .doc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:22px}
@@ -72,8 +80,8 @@ a{color:var(--brand)}
 </head>
 <body>
 <div class="wrap">
+<nav class="nav" aria-label="Meniu"><a class="brand" href="/">◈ <b>FirmsFinder AI</b> · by AiVenture</a><ul><li><a class="m" href="/">Căutare</a></li><li><a class="m on" href="/gdpr.html">Date și GDPR</a></li><li><a class="m" href="/cerere.html">Cerere de scoatere</a></li><li><a class="m" href="mailto:contact@5thelement.ai">Contact</a></li></ul></nav>
 <header>
-  <div class="logo">◈ <a href="/" style="text-decoration:none"><b>FirmsFinder AI</b></a> · by AiVenture</div>
   <h1>Datele firmei dumneavoastră și <em>dreptul de opoziție.</em></h1>
   <p class="sub">Ce date afișăm, de unde provin și cum puteți cere scoaterea firmei din rezultate.</p>
 </header>
