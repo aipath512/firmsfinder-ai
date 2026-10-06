@@ -163,13 +163,14 @@ async function opozitie(request, env) {
   const ins = await env.DB.prepare("INSERT INTO cereri_gdpr (data, cui, denumire, nume, email, calitate, motiv) VALUES (datetime('now'), ?, ?, ?, ?, ?, ?)")
     .bind(Number(cui), firma.denumire, nume, email, calitate, motiv).run();
   const id = ins && ins.meta ? ins.meta.last_row_id : null;
-  const trimis = await emailCerere(env, { id, cui, denumire: firma.denumire, nume, email, calitate, motiv });
-  return json({ ok: true, denumire: firma.denumire, nr: id, email_trimis: trimis });
+  const stare = await emailCerere(env, { id, cui, denumire: firma.denumire, nume, email, calitate, motiv });
+  if (id) await env.DB.prepare("UPDATE cereri_gdpr SET email_status = ? WHERE id = ?").bind(stare.slice(0, 500), id).run();
+  return json({ ok: true, denumire: firma.denumire, nr: id, email_trimis: stare.startsWith("OK") });
 }
 
 // Trimite cererea pe email la contact@5thelement.ai prin Resend (secretul RESEND_API_KEY în setările Worker-ului).
 async function emailCerere(env, c) {
-  if (!env.RESEND_API_KEY) return false;
+  if (!env.RESEND_API_KEY) return "LIPSA RESEND_API_KEY";
   const text = [
     "Cerere nouă de opoziție / scoatere din FirmsFinder AI",
     "",
@@ -196,6 +197,7 @@ async function emailCerere(env, c) {
         text,
       }),
     });
-    return r.ok;
-  } catch { return false; }
+    const corp = await r.text();
+    return (r.ok ? "OK " : "EROARE " + r.status + " ") + corp;
+  } catch (e) { return "EXCEPTIE " + String(e); }
 }
