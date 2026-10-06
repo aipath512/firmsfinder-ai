@@ -3,6 +3,7 @@
 //   /legal/confidentialitate   politica de prelucrare a datelor
 //   /legal/termeni             termeni și condiții
 //   /legal/cookies             politica de cookies
+//   /legal/ai-act              declarație de transparență AI (Regulamentul UE 2024/1689 — AI Act)
 //   /legal/cerere              cerere GDPR (acces / rectificare / ștergere / opoziție)
 //   /legal/lead.js             formularul „primiți o ofertă” — se pune pe orice pagină cu o linie <script>
 //   POST /legal/api/lead       salvare formular în KV (LEADS) + email
@@ -34,6 +35,9 @@ export const SITES = {
 <p>Rezultatele pot fi folosite pentru prospectare comercială între firme (B2B), cu respectarea legislației privind comunicările comerciale și protecția datelor. Nu sunt permise extragerea automată masivă a datelor, revânzarea lor ca bază de date sau folosirea pentru hărțuire ori spam.</p>`,
     cookies: [],
     terti: [["Google Fonts (Google)", "încărcarea fonturilor paginii; nu setează cookies, dar browserul transmite adresa IP către Google"]],
+    ai_sisteme: [],
+    ai_continut: "Textele paginilor au fost redactate cu asistența unui model AI (Claude, Anthropic) și verificate de echipa AiVenture înainte de publicare. Datele despre firme NU sunt generate de AI: provin direct din registrele oficiale ONRC și Ministerul Finanțelor.",
+    ai_planificat: "Căutarea în limbaj natural („întrebați piața”) și găsirea firmelor asemănătoare vor folosi modele AI. La lansare, această pagină va fi actualizată, iar răspunsurile generate de AI vor fi marcate ca atare.",
   },
   "ecbtax.com": {
     operator: "ECB TAX, ACCOUNTING & HR SRL",
@@ -51,6 +55,11 @@ export const SITES = {
     servicii_extra: [],
     termeni_extra: "",
     cookies: [],
+    ai_sisteme: [
+      ["Agent A2A de calcul salarial", "răspunde automat cererilor venite de la alți agenți AI (agent-to-agent) pentru calculul salariilor", "AiVenture S.R.L. (dezvoltator)", "risc limitat / minim"],
+    ],
+    ai_continut: "Unele texte ale site-ului au fost redactate cu asistență AI și verificate de ECB Tax Accounting & HR înainte de publicare. Consultanța contabilă și fiscală este oferită exclusiv de specialiști autorizați, nu de AI.",
+    ai_planificat: "",
     terti: [["Cloudflare Web Analytics", "statistici agregate de vizitare, fără cookies și fără identificarea vizitatorului"], ["Google Fonts (Google)", "încărcarea fonturilor paginii; nu setează cookies, dar browserul transmite adresa IP către Google"]],
   },
 };
@@ -77,6 +86,7 @@ export async function legal(request, env, url) {
   if (p === "/legal/api/cerere" && request.method === "POST") return cerere(request, env, s, url.hostname);
   if (p === "/legal/confidentialitate") return pagina(s, "Politica de prelucrare a datelor personale", confidentialitate(s));
   if (p === "/legal/termeni") return pagina(s, "Termeni și condiții", termeni(s));
+  if (p === "/legal/ai-act") return pagina(s, "Declarație de transparență AI (AI Act)", aiActHtml(s));
   if (p === "/legal/cookies") return pagina(s, "Politica de cookies", cookiesHtml(s));
   if (p === "/legal/cerere") return pagina(s, "Cerere privind datele personale", cerereHtml(s));
   if (p === "/legal" ) return Response.redirect(url.origin + "/legal/confidentialitate", 302);
@@ -258,7 +268,7 @@ textarea{min-height:110px}button{margin-top:14px;background:var(--acc);color:#ff
 .hp{position:absolute;left:-9999px}#msg{margin-top:12px;font-weight:600}.ok{color:#2d7a46}.err{color:#b23a3a}
 footer{margin:30px 0;padding-top:14px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}footer a{color:var(--muted)}
 </style></head><body><div class="w">
-<nav><a class="b" href="/">← ${esc(s.marca)}</a><span class="l"><a href="/legal/confidentialitate">Confidențialitate</a><a href="/legal/termeni">Termeni</a><a href="/legal/cookies">Cookies</a><a href="/legal/cerere">Cerere date personale</a></span></nav>
+<nav><a class="b" href="/">← ${esc(s.marca)}</a><span class="l"><a href="/legal/confidentialitate">Confidențialitate</a><a href="/legal/termeni">Termeni</a><a href="/legal/cookies">Cookies</a><a href="/legal/ai-act">AI Act</a><a href="/legal/cerere">Cerere date personale</a></span></nav>
 <h1>${esc(titlu)}</h1><p class="sub">${esc(s.operator)} · ${esc(s.site)} · versiunea ${VERSIUNE}</p>
 ${corp}
 <footer>${esc(s.operator)} · CUI ${esc(s.cui)} · ${esc(s.reg)} · ${esc(s.adresa)} · <a href="mailto:${esc(s.email)}">${esc(s.email)}</a></footer>
@@ -307,6 +317,29 @@ ${s.termeni_extra || ""}
 <p>Prelucrarea datelor este descrisă în <a href="${s.politica_url}">politica de prelucrare a datelor personale</a>.</p>
 <h2>6. Răspundere și legea aplicabilă</h2>
 <p>Site-ul este oferit „ca atare”. Termenii sunt guvernați de legea română; litigiile se soluționează pe cale amiabilă sau de instanțele competente din România. Consumatorii pot folosi și platforma SOL a Comisiei Europene.</p>
+</div>`;
+}
+
+function aiActHtml(s) {
+  const rows = s.ai_sisteme.map(([n, scop, furn, risc]) => `<tr><td>${esc(n)}</td><td>${esc(scop)}</td><td>${esc(furn)}</td><td>${esc(risc)}</td></tr>`).join("");
+  return `<div class="c">
+<p>Regulamentul (UE) 2024/1689 privind inteligența artificială (AI Act) cere transparență față de persoanele care interacționează cu sisteme AI sau văd conținut generat de AI. Pe această pagină ${esc(s.operator)} declară cum folosește AI pe ${esc(s.site)}.</p>
+<h2>1. Sisteme AI folosite pe site</h2>
+${rows ? `<table><tr><th>Sistem</th><th>Ce face</th><th>Furnizor</th><th>Categorie de risc</th></tr>${rows}</table>` : `<p><b>${esc(s.site)} nu folosește în prezent sisteme AI care interacționează direct cu vizitatorii</b> (chatbot, asistent virtual, decizii automate despre persoane).</p>`}
+<p>Rolul nostru este de <b>implementator</b> (deployer) al sistemelor AI. Nu folosim sisteme AI cu risc ridicat (anexa III) și nicio practică interzisă de art. 5 (manipulare, exploatarea vulnerabilităților, evaluare socială, recunoaștere biometrică, recunoașterea emoțiilor).</p>
+<h2>2. Conținut realizat cu ajutorul AI</h2>
+<p>${esc(s.ai_continut)}</p>
+<h2>3. Transparență (art. 50)</h2>
+<ul>
+<li>Când un sistem AI vă răspunde direct, veți fi informat clar că discutați cu un sistem AI, nu cu un om.</li>
+<li>Conținutul generat de AI și publicat fără verificare umană este marcat ca atare.</li>
+<li>Nicio decizie cu efect juridic sau similar asupra dumneavoastră nu se ia exclusiv automat (art. 22 GDPR).</li>
+</ul>
+<h2>4. Supraveghere umană și alfabetizare AI (art. 4)</h2>
+<p>Persoanele care folosesc sau supraveghează sistemele AI în numele nostru au fost instruite privind funcționarea, limitele și riscurile acestora. Orice rezultat AI poate fi verificat și corectat de un om.</p>
+${s.ai_planificat ? `<h2>5. Planificat</h2><p>${esc(s.ai_planificat)}</p>` : ""}
+<h2>${s.ai_planificat ? 6 : 5}. Întrebări și sesizări</h2>${operatorHtml(s)}
+<p>Ultima actualizare: ${VERSIUNE}. Pagina se actualizează la orice schimbare a sistemelor AI folosite.</p>
 </div>`;
 }
 
