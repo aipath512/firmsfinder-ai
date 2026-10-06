@@ -241,19 +241,19 @@ export async function proceseaza(cui, env, cuBrave = true) {
 
 // lotul automat (cron): următoarea firmă activă, în ordinea cifrei de afaceri, fără rând în firme_site
 export async function lot(env, n = 1) {
-  // întâi: reîncearcă firmele negăsite care nu au avut încă acces la căutare (fără cheie / plafon atins)
+  // 1 reîncercare cu Brave (firme negăsite fără căutare încă) + restul firme noi, toate în paralel
+  let retry = null;
   if (await braveDisponibil(env)) {
-    const v = await env.DB.prepare(`SELECT cui FROM firme_site WHERE verificat IN (0, 2)
-      AND (incercari LIKE '%fără BRAVE_KEY%' OR incercari LIKE '%amânată (lot)%' OR incercari LIKE '%plafon zilnic%' OR incercari LIKE '%căutare → brave %') LIMIT ?`).bind(n).all();
-    if (v.results.length) return [await proceseaza(v.results[0].cui, env, true)];
+    retry = await env.DB.prepare(`SELECT cui FROM firme_site WHERE verificat IN (0, 2)
+      AND (incercari LIKE '%fără BRAVE_KEY%' OR incercari LIKE '%amânată (lot)%' OR incercari LIKE '%plafon zilnic%' OR incercari LIKE '%căutare → brave %') LIMIT 1`).first();
   }
   const r = await env.DB.prepare(`SELECT m.cui FROM mf_bilant_2024 m INDEXED BY ix_mf_2024_ca
     WHERE m.cifra_afaceri > 0 AND EXISTS (SELECT 1 FROM onrc_firme o WHERE o.cui = m.cui AND o.top = 1) AND NOT EXISTS (SELECT 1 FROM firme_site s WHERE s.cui = m.cui)
-    ORDER BY m.cifra_afaceri DESC LIMIT ?`).bind(n).all();
-  const out = [];
-  // în paralel; doar prima firmă din lot poate folosi Brave (contorul zilnic rămâne exact)
-  out.push(...await Promise.all(r.results.map((x, i) => proceseaza(x.cui, env, i === 0).catch(e => ({ cui: x.cui, eroare: e.message })))));
-  return out;
+    ORDER BY m.cifra_afaceri DESC LIMIT ?`).bind(retry ? n - 1 : n).all();
+  // doar o firmă pe rulare poate folosi Brave (contorul zilnic rămâne exact)
+  const sarcini = r.results.map((x, i) => [x.cui, !retry && i === 0]);
+  if (retry) sarcini.unshift([retry.cui, true]);
+  return Promise.all(sarcini.map(([cui, b]) => proceseaza(cui, env, b).catch(e => ({ cui, eroare: e.message }))));
 }
 
 export async function site(url, env, ctx) {
