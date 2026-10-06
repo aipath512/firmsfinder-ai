@@ -2,6 +2,7 @@
 // Un singur Worker servește, pentru FIECARE site din SITES:
 //   /legal/confidentialitate   politica de prelucrare a datelor
 //   /legal/termeni             termeni și condiții
+//   /legal/cookies             politica de cookies
 //   /legal/cerere              cerere GDPR (acces / rectificare / ștergere / opoziție)
 //   /legal/lead.js             formularul „primiți o ofertă” — se pune pe orice pagină cu o linie <script>
 //   POST /legal/api/lead       salvare formular în KV (LEADS) + email
@@ -22,11 +23,17 @@ export const SITES = {
     marca: "FirmsFinder AI",
     site: "1clic-ia.eu",
     scop_formular: "o ofertă personalizată pentru FirmsFinder AI",
-    politica_url: "/gdpr.html",
-    termeni_url: "/termeni.html",
+    politica_url: "/legal/confidentialitate",
+    termeni_url: "/legal/termeni",
     destinatari: ["contact@5thelement.ai"],
     culoare: "#e36414",
-    servicii_extra: ["căutarea în baza de firme FirmsFinder AI (date publice ONRC și Ministerul Finanțelor)"],
+    servicii_extra: ['căutarea în baza de firme FirmsFinder AI, construită din date publice ONRC și ale Ministerului Finanțelor — detalii despre aceste date și dreptul de opoziție al firmelor: <a href="/gdpr.html">Datele firmei dumneavoastră</a> · <a href="/cerere.html">Cerere de scoatere din bază</a>'],
+    termeni_extra: `<h2>Serviciul FirmsFinder AI</h2>
+<p>FirmsFinder AI permite căutarea firmelor active din România după activitate, zonă, mărime și evoluție financiară, pe baza datelor publice ONRC și ale Ministerului Finanțelor (data.gov.ro, licența OGL-ROU-1.0). În această etapă căutarea este gratuită, în scop demonstrativ; funcțiile, limitele și prețurile se pot modifica.</p>
+<p>Datele sunt preluate ca atare din sursele oficiale și pot conține întârzieri sau erori (de exemplu, bilanțurile 2025 pot fi încă incomplete). Au caracter orientativ și nu înlocuiesc verificarea la sursă înaintea unei decizii comerciale.</p>
+<p>Rezultatele pot fi folosite pentru prospectare comercială între firme (B2B), cu respectarea legislației privind comunicările comerciale și protecția datelor. Nu sunt permise extragerea automată masivă a datelor, revânzarea lor ca bază de date sau folosirea pentru hărțuire ori spam.</p>`,
+    cookies: [],
+    terti: [["Google Fonts (Google)", "încărcarea fonturilor paginii; nu setează cookies, dar browserul transmite adresa IP către Google"]],
   },
   "ecbtax.com": {
     operator: "ECB TAX, ACCOUNTING & HR SRL",
@@ -42,6 +49,9 @@ export const SITES = {
     destinatari: ["ecbtax@gmail.com", "contact@5thelement.ai"],
     culoare: "#b8860b",
     servicii_extra: [],
+    termeni_extra: "",
+    cookies: [],
+    terti: [["Cloudflare Web Analytics", "statistici agregate de vizitare, fără cookies și fără identificarea vizitatorului"], ["Google Fonts (Google)", "încărcarea fonturilor paginii; nu setează cookies, dar browserul transmite adresa IP către Google"]],
   },
 };
 SITES["www.ecbtax.com"] = SITES["ecbtax.com"];
@@ -67,6 +77,7 @@ export async function legal(request, env, url) {
   if (p === "/legal/api/cerere" && request.method === "POST") return cerere(request, env, s, url.hostname);
   if (p === "/legal/confidentialitate") return pagina(s, "Politica de prelucrare a datelor personale", confidentialitate(s));
   if (p === "/legal/termeni") return pagina(s, "Termeni și condiții", termeni(s));
+  if (p === "/legal/cookies") return pagina(s, "Politica de cookies", cookiesHtml(s));
   if (p === "/legal/cerere") return pagina(s, "Cerere privind datele personale", cerereHtml(s));
   if (p === "/legal" ) return Response.redirect(url.origin + "/legal/confidentialitate", 302);
   return new Response("Pagina nu există.", { status: 404 });
@@ -247,7 +258,7 @@ textarea{min-height:110px}button{margin-top:14px;background:var(--acc);color:#ff
 .hp{position:absolute;left:-9999px}#msg{margin-top:12px;font-weight:600}.ok{color:#2d7a46}.err{color:#b23a3a}
 footer{margin:30px 0;padding-top:14px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}footer a{color:var(--muted)}
 </style></head><body><div class="w">
-<nav><a class="b" href="/">← ${esc(s.marca)}</a><span class="l"><a href="/legal/confidentialitate">Confidențialitate</a><a href="/legal/termeni">Termeni</a><a href="/legal/cerere">Cerere date personale</a></span></nav>
+<nav><a class="b" href="/">← ${esc(s.marca)}</a><span class="l"><a href="/legal/confidentialitate">Confidențialitate</a><a href="/legal/termeni">Termeni</a><a href="/legal/cookies">Cookies</a><a href="/legal/cerere">Cerere date personale</a></span></nav>
 <h1>${esc(titlu)}</h1><p class="sub">${esc(s.operator)} · ${esc(s.site)} · versiunea ${VERSIUNE}</p>
 ${corp}
 <footer>${esc(s.operator)} · CUI ${esc(s.cui)} · ${esc(s.reg)} · ${esc(s.adresa)} · <a href="mailto:${esc(s.email)}">${esc(s.email)}</a></footer>
@@ -259,7 +270,7 @@ function operatorHtml(s) {
 }
 
 function confidentialitate(s) {
-  const extra = s.servicii_extra.map(x => `<li>${esc(x)}</li>`).join("");
+  const extra = s.servicii_extra.map(x => `<li>${x}</li>`).join("");
   return `<div class="c">
 <h2>1. Cine prelucrează datele</h2>${operatorHtml(s)}
 <h2>2. Ce date prelucrăm și de ce</h2>
@@ -278,7 +289,7 @@ ${extra ? `<p>Alte servicii ale site-ului:</p><ul>${extra}</ul>` : ""}
 <h2>5. Drepturile dumneavoastră</h2>
 <p>Aveți dreptul de acces, rectificare, ștergere, restricționare, portabilitate, opoziție și de a retrage oricând consimțământul, fără a afecta prelucrarea anterioară (art. 15–22 GDPR). Le puteți exercita din pagina <a href="/legal/cerere">Cerere date personale</a> sau la <a href="mailto:${esc(s.email)}">${esc(s.email)}</a>. Răspundem în cel mult o lună. Aveți și dreptul de a depune plângere la ANSPDCP (<a href="https://www.dataprotection.ro" rel="noopener">dataprotection.ro</a>).</p>
 <h2>6. Cookies</h2>
-<p>Formularul și aceste pagini nu folosesc cookies de urmărire. Dacă site-ul folosește alte instrumente, ele sunt descrise în politica de cookies a site-ului.</p>
+<p>Detalii în <a href="/legal/cookies">politica de cookies</a>.</p>
 </div>`;
 }
 
@@ -289,12 +300,32 @@ function termeni(s) {
 <p>Informațiile de pe ${esc(s.site)} au caracter general și nu constituie o ofertă fermă sau o consultanță personalizată, până la confirmarea scrisă a ${esc(s.operator)}.</p>
 <h2>3. Formularul de ofertă</h2>
 <p>Trimiterea formularului nu creează obligații contractuale. Vă contactăm cu ${esc(s.scop_formular)}; contractul se încheie doar prin acordul scris al ambelor părți.</p>
+${s.termeni_extra || ""}
 <h2>4. Proprietate intelectuală</h2>
 <p>Conținutul site-ului aparține ${esc(s.operator)} sau partenerilor săi și nu poate fi copiat în scop comercial fără acord.</p>
 <h2>5. Date personale</h2>
 <p>Prelucrarea datelor este descrisă în <a href="${s.politica_url}">politica de prelucrare a datelor personale</a>.</p>
 <h2>6. Răspundere și legea aplicabilă</h2>
 <p>Site-ul este oferit „ca atare”. Termenii sunt guvernați de legea română; litigiile se soluționează pe cale amiabilă sau de instanțele competente din România. Consumatorii pot folosi și platforma SOL a Comisiei Europene.</p>
+</div>`;
+}
+
+function cookiesHtml(s) {
+  const t = s.terti.map(([n, d]) => `<tr><td>${esc(n)}</td><td>${esc(d)}</td></tr>`).join("");
+  const c = s.cookies.length ? `<table><tr><th>Cookie</th><th>Scop</th><th>Durată</th></tr>${s.cookies.map(([n, d, x]) => `<tr><td>${esc(n)}</td><td>${esc(d)}</td><td>${esc(x)}</td></tr>`).join("")}</table>` : "<p><b>" + esc(s.site) + " nu plasează cookies</b> în browserul dumneavoastră: nici de analiză, nici de publicitate, nici de urmărire. Din acest motiv nu vă cerem acordul printr-un banner de cookies.</p>";
+  return `<div class="c">
+<h2>1. Ce sunt cookies</h2>
+<p>Cookies sunt fișiere mici pe care un site le poate salva în browserul dumneavoastră, pentru a-l recunoaște la vizitele următoare. Legea (Legea nr. 506/2004 și GDPR) cere acordul dumneavoastră pentru orice cookie care nu este strict necesar funcționării site-ului.</p>
+<h2>2. Cookies folosite pe ${esc(s.site)}</h2>
+${c}
+<h2>3. Servicii terțe încărcate de pagină</h2>
+${t ? `<table><tr><th>Serviciu</th><th>Ce face</th></tr>${t}</table>` : "<p>Niciunul.</p>"}
+<p>Cloudflare, furnizorul de infrastructură, poate folosi tehnic cookies strict necesare pentru securitate (protecție împotriva atacurilor automate). Acestea nu vă identifică și nu necesită acord.</p>
+<h2>4. Formularele</h2>
+<p>Formularele de pe site (oferta personalizată, cererile privind datele) nu folosesc cookies. Datele introduse sunt prelucrate conform <a href="${s.politica_url}">politicii de prelucrare a datelor personale</a>.</p>
+<h2>5. Cum controlați cookies</h2>
+<p>Puteți șterge sau bloca oricând cookies din setările browserului. Dacă vom introduce în viitor cookies care necesită acord, această pagină va fi actualizată, iar acordul vă va fi cerut înainte de folosirea lor.</p>
+<h2>6. Contact</h2>${operatorHtml(s)}
 </div>`;
 }
 

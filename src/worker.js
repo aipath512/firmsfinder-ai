@@ -25,6 +25,7 @@ export default {
       if (url.pathname === "/api/cauta") return await cauta(url, env);
       if (url.pathname === "/api/opozitie" && request.method === "POST") return await opozitie(request, env);
       if (url.pathname === "/legal" || url.pathname.startsWith("/legal/")) return await legal(request, env, url);
+      if (url.pathname === "/termeni.html") return Response.redirect(url.origin + "/legal/termeni", 301);
       if (url.pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /api/\n", { headers: { "content-type": "text/plain" } });
       if (url.pathname.startsWith("/api/")) return json({ eroare: "Adresă necunoscută." }, 404);
     } catch (e) {
