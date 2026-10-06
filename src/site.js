@@ -1,7 +1,7 @@
 // src/site.js — Crawler propriu v0.4 (2026-10-06): găsește site-ul unei firme, îl verifică după CUI/nume, extrage datele.
 // GET /admin/site?cui=123&k=TOKEN[&fundal=1]  → o firmă: caută, verifică, salvează în D1 firme_site.
 // GET /admin/site?stat=1&k=TOKEN              → statistici (confirmat / probabil / negăsit, căutări Brave azi).
-// Cron (wrangler.toml [triggers]) → lot(): ia următoarea firmă fără rând în firme_site, în ordinea cifrei de afaceri.
+// Cron (wrangler.toml [triggers], la fiecare minut) → cron(): 6 rulări × 12 firme ≈ 72 firme/minut ≈ 100.000/zi.
 // Niveluri verificat: 1 = confirmat (CUI sau nume complet pe site), 2 = probabil (domeniu = numele exact + indicii), 0 = negăsit.
 // Căutare web gratuită: Brave Search API (secret BRAVE_KEY), plafon BRAVE_ZI căutări/zi (5 $ credit gratuit/lună ≈ 1.000).
 
@@ -239,21 +239,34 @@ export async function proceseaza(cui, env, cuBrave = true) {
   return salveaza(env, f, gasit || prob, incercari, b);
 }
 
-// lotul automat (cron): următoarea firmă activă, în ordinea cifrei de afaceri, fără rând în firme_site
-export async function lot(env, n = 1) {
-  // 1 reîncercare cu Brave (firme negăsite fără căutare încă) + restul firme noi, toate în paralel
+// lotul automat: rezervă n firme (rând verificat = -1 „în lucru”), apoi le procesează în paralel.
+// Rezervarea (INSERT OR IGNORE) împiedică două rulări simultane să ia aceeași firmă.
+export async function lot(env, n = 10, off = 0, cuBrave = true) {
+  await env.DB.prepare("DELETE FROM firme_site WHERE verificat = -1 AND data < datetime('now', '-30 minutes')").run();
   let retry = null;
-  if (await braveDisponibil(env)) {
+  if (cuBrave && await braveDisponibil(env)) {
     retry = await env.DB.prepare(`SELECT cui FROM firme_site WHERE verificat IN (0, 2)
       AND (incercari LIKE '%fără BRAVE_KEY%' OR incercari LIKE '%amânată (lot)%' OR incercari LIKE '%plafon zilnic%' OR incercari LIKE '%căutare → brave %') LIMIT 1`).first();
   }
-  const r = await env.DB.prepare(`SELECT m.cui FROM mf_bilant_2024 m INDEXED BY ix_mf_2024_ca
-    WHERE m.cifra_afaceri > 0 AND EXISTS (SELECT 1 FROM onrc_firme o WHERE o.cui = m.cui AND o.top = 1) AND NOT EXISTS (SELECT 1 FROM firme_site s WHERE s.cui = m.cui)
-    ORDER BY m.cifra_afaceri DESC LIMIT ?`).bind(retry ? n - 1 : n).all();
+  const r = await env.DB.prepare(`SELECT m.cui, o.denumire FROM mf_bilant_2024 m INDEXED BY ix_mf_2024_ca CROSS JOIN onrc_firme o ON o.cui = m.cui
+    WHERE m.cifra_afaceri > 0 AND o.top = 1 AND NOT EXISTS (SELECT 1 FROM firme_site s WHERE s.cui = m.cui)
+    ORDER BY m.cifra_afaceri DESC LIMIT ? OFFSET ?`).bind(n, off).all();
+  const rez = r.results.length ? await env.DB.batch(r.results.map(x =>
+    env.DB.prepare("INSERT OR IGNORE INTO firme_site (cui, denumire, verificat, metoda, data) VALUES (?, ?, -1, 'in-lucru', datetime('now'))").bind(x.cui, x.denumire))) : [];
+  const ale = r.results.filter((x, i) => rez[i]?.meta?.changes === 1).map(x => x.cui);
   // doar o firmă pe rulare poate folosi Brave (contorul zilnic rămâne exact)
-  const sarcini = r.results.map((x, i) => [x.cui, !retry && i === 0]);
+  const sarcini = ale.map((cui, i) => [cui, cuBrave && !retry && i === 0]);
   if (retry) sarcini.unshift([retry.cui, true]);
-  return Promise.all(sarcini.map(([cui, b]) => proceseaza(cui, env, b).catch(e => ({ cui, eroare: e.message }))));
+  const out = await Promise.all(sarcini.map(([cui, b]) => proceseaza(cui, env, b).catch(e => ({ cui, eroare: e.message }))));
+  return { rezervate: ale.length, procesate: out.length, gasite: out.filter(x => x.gasit).length };
+}
+
+// cron: 6 rulări separate în paralel (fiecare are propriile 6 conexiuni simultane), câte 12 firme fiecare
+export async function cron(env) {
+  const tok = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='admin_token'").first();
+  const N = 12, R = 6;
+  await Promise.all([...Array(R).keys()].map(i =>
+    fetch(`https://1clic-ia.eu/admin/site?lot=${N}&off=${i * N}&brave=${i === 0 ? 1 : 0}&k=${tok.valoare}`).then(r => r.text()).catch(() => null)));
 }
 
 export async function site(url, env, ctx) {
@@ -263,12 +276,11 @@ export async function site(url, env, ctx) {
   if (p.get("stat") === "1") {
     const s = await env.DB.prepare("SELECT verificat, COUNT(*) n FROM firme_site GROUP BY verificat").all();
     const bz = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='brave_zi'").first();
-    return Response.json({ niveluri: Object.fromEntries(s.results.map(x => [{ 0: "negasit", 1: "confirmat", 2: "probabil" }[x.verificat] ?? x.verificat, x.n])), brave_azi: bz?.valoare || null, plafon_brave_zi: BRAVE_ZI, brave_configurat: !!env.BRAVE_KEY });
+    return Response.json({ niveluri: Object.fromEntries(s.results.map(x => [{ "-1": "in_lucru", 0: "negasit", 1: "confirmat", 2: "probabil" }[x.verificat] ?? x.verificat, x.n])), brave_azi: bz?.valoare || null, plafon_brave_zi: BRAVE_ZI, brave_configurat: !!env.BRAVE_KEY });
   }
   if (p.get("lot")) {
-    const n = Math.min(10, Number(p.get("lot")) || 1);
-    if (ctx) { ctx.waitUntil(lot(env, n)); return Response.json({ pornit: true, lot: n }); }
-    return Response.json(await lot(env, n));
+    const n = Math.min(20, Number(p.get("lot")) || 1);
+    return Response.json(await lot(env, n, Math.min(200, Number(p.get("off")) || 0), p.get("brave") !== "0"));
   }
   const cui = Number(p.get("cui"));
   if (ctx && p.get("fundal") === "1") { ctx.waitUntil(proceseaza(cui, env)); return Response.json({ pornit: true, cui }); }

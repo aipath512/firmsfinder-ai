@@ -17,12 +17,12 @@ const JUDETE = ["Alba","Arad","Argeș","Bacău","Bihor","Bistrița-Năsăud","Bo
 
 // Worker: răspunde la /api/* și /robots.txt; pagina (public/index.html) e servită automat ca „asset”.
 import { legal } from "./legal.js";
-import { site, lot } from "./site.js";
+import { site, cron } from "./site.js";
 
 export default {
-  // cron: 10 firme în paralel la fiecare minut (~14.400/zi); Brave plafonat separat la 30/zi
+  // cron: 6 rulări × 12 firme la fiecare minut (~100.000/zi); Brave plafonat separat la 30/zi
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(lot(env, 10).catch(() => null));
+    ctx.waitUntil(cron(env).catch(() => null));
   },
 
   async fetch(request, env, ctx) {
