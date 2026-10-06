@@ -1,8 +1,12 @@
-# wrangler.toml — FirmsFinder AI v1.0 (2026-10-06) — Cloudflare Pages
-# Numele trebuie să rămână exact „wrangler.toml”.
-name = "firmsfinder"
-pages_build_output_dir = "public"
+# wrangler.toml — FirmsFinder AI v1.0 (2026-10-06) — Cloudflare Worker + static assets
+# Numele trebuie să rămână exact „wrangler.toml”; „name” = numele Worker-ului din Cloudflare.
+name = "firmsfinder-ai"
+main = "src/worker.js"
 compatibility_date = "2026-09-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
 
 [[d1_databases]]
 binding = "DB"

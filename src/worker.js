@@ -1,6 +1,6 @@
-// functions/_middleware.js — FirmsFinder AI v1.0 (2026-10-06)
+// src/worker.js — FirmsFinder AI v1.0 (2026-10-06)
 // FirmsFinder AI — Descoperiți firmele pe care nu le știți: viitorii clienți.
-// Cloudflare Pages Functions: API peste D1 b2b-romania-db (ONRC + bilanțuri MF 2023–2025).
+// Cloudflare Worker: API peste D1 b2b-romania-db (ONRC + bilanțuri MF 2023–2025).
 // Sursa datelor: ONRC / MF, data.gov.ro (OGL-ROU-1.0).
 
 const PE_PAGINA = 25;
@@ -13,21 +13,22 @@ const JUDETE = ["Alba","Arad","Argeș","Bacău","Bihor","Bistrița-Năsăud","Bo
   "Harghita","Hunedoara","Ialomița","Iași","Ilfov","Maramureș","Mehedinți","Mureș","Neamț","Olt","Prahova",
   "Satu Mare","Sălaj","Sibiu","Suceava","Teleorman","Timiș","Tulcea","Vaslui","Vâlcea","Vrancea"];
 
-// Pages Functions middleware: răspunde la /api/* și /robots.txt; restul (pagina) vine din public/.
-export async function onRequest(context) {
-  const { request, env, next } = context;
-  const url = new URL(request.url);
-  try {
-    if (url.pathname === "/api/caen") return await caen(url, env);
-    if (url.pathname === "/api/stari") return await stari(env);
-    if (url.pathname === "/api/cauta") return await cauta(url, env);
-    if (url.pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /api/\n", { headers: { "content-type": "text/plain" } });
-    if (url.pathname.startsWith("/api/")) return json({ eroare: "Adresă necunoscută." }, 404);
-  } catch (e) {
-    return json({ eroare: "Eroare internă. Încercați din nou." }, 500);
-  }
-  return next();
-}
+// Worker: răspunde la /api/* și /robots.txt; pagina (public/index.html) e servită automat ca „asset”.
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    try {
+      if (url.pathname === "/api/caen") return await caen(url, env);
+      if (url.pathname === "/api/stari") return await stari(env);
+      if (url.pathname === "/api/cauta") return await cauta(url, env);
+      if (url.pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /api/\n", { headers: { "content-type": "text/plain" } });
+      if (url.pathname.startsWith("/api/")) return json({ eroare: "Adresă necunoscută." }, 404);
+    } catch (e) {
+      return json({ eroare: "Eroare internă. Încercați din nou." }, 500);
+    }
+    return env.ASSETS.fetch(request);
+  },
+};
 
 function json(d, status = 200, extra = {}) {
   return new Response(JSON.stringify(d), { status, headers: { "content-type": "application/json; charset=utf-8", ...extra } });
