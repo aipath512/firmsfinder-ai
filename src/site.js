@@ -86,7 +86,16 @@ async function proceseaza(cui, env) {
     const r = r1[i] || r2[i];
     const d = dom[i];
     if (!r) { incercari.push(d + " → nimic"); continue; }
-    const v = verifica(r.html, f.cui, f.denumire);
+    let v = verifica(r.html, f.cui, f.denumire);
+    if (!v) {
+      // CUI-ul stă de obicei în pagina de contact / termeni / confidențialitate, nu pe prima pagină
+      const leg = [...r.html.matchAll(/<a[^>]+href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)]
+        .map(m => { try { return { u: new URL(m[1], r.url).href, t: (m[2] + " " + m[1]).toLowerCase() }; } catch { return null; } })
+        .filter(x => x && x.u.startsWith(new URL(r.url).origin) && /contact|termen|terms|legal|confiden|privacy|gdpr|despre|about|impressum|date-firm|firma/.test(x.t));
+      const uni = [...new Map(leg.map(l => [l.u, l])).values()].slice(0, 4);
+      const pg = await Promise.all(uni.map(l => ia(l.u, 5000)));
+      for (const x of pg) { if (x && verifica(x.html, f.cui, f.denumire) === "cui") { v = "cui-pagina"; break; } }
+    }
     if (!v) { incercari.push(d + " → răspunde, dar nu e firma"); continue; }
     incercari.push(d + " → GĂSIT (" + v + ")");
     if (!gasit) gasit = { ...r, domeniu: d, metoda: (f.web && i === 0 ? "onrc+" : "ghicit+") + v };
