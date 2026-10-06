@@ -21,6 +21,7 @@ import { legal } from "./legal.js";
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.hostname === "www.1clic-ia.eu") return Response.redirect("https://1clic-ia.eu" + url.pathname + url.search, 301);
     try {
       if (url.pathname === "/api/caen") return await caen(url, env);
       if (url.pathname === "/api/stari") return await stari(env);
