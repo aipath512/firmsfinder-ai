@@ -58,24 +58,7 @@ button{border:0;border-radius:9px;padding:11px 18px;font:600 15px Inter,sans-ser
 .pag button:disabled{opacity:.4;cursor:default}
 footer{margin:40px 0 30px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
 footer a{color:var(--muted)}
-.lead{background:#0f1a20;color:#f3efe6;border-radius:16px;padding:26px 22px;margin:10px 0 40px}
-.lead h2{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:clamp(22px,4vw,30px);margin:0 0 18px;color:#fff}
-.lead label.t{display:block;font-size:15px;font-weight:600;margin:14px 0 6px;color:#f3efe6;text-transform:none;letter-spacing:0}
-.lead input[type=text],.lead input[type=email],.lead input[type=tel],.lead select{width:100%;padding:12px;border-radius:9px;border:1px solid #3a4650;background:#fff;color:#16202a;font:inherit}
-.lead .ck{display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:14.5px;line-height:1.45;color:#f3efe6;text-transform:none;letter-spacing:0;font-weight:500}
-.lead .ck input{width:20px;height:20px;margin-top:1px;flex:none}
-.lead .row{display:flex;flex-wrap:wrap;gap:8px 22px}
-.lead a{color:#ffb27a}
-.lead .p{margin:18px 0 4px;font-size:14.5px}
-.lead button{margin-top:14px;background:#e36414;color:#fff;border:0;border-radius:9px;padding:13px 22px;font:600 16px Inter,sans-serif;cursor:pointer}
-.lead #lmsg{margin-top:12px;font-weight:600}
-.lead form{display:block;background:transparent;border:0;padding:0;max-width:720px}
-.lead label{color:#f3efe6;text-transform:none;letter-spacing:0;margin:0}
-.lead label.t{display:block;font-size:15px;font-weight:600;margin:16px 0 6px}
-.lead .ck{display:flex}
-.lead .ck span,.lead .ck{font-size:14.5px}
 
-.lead .okm{color:#7fe0a0}.lead .errm{color:#ff9b9b}
 
 .nav{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 18px;padding:14px 0;border-bottom:1px solid var(--line)}
 .nav .brand{font-family:"JetBrains Mono",monospace;font-size:14px;color:var(--muted);text-decoration:none;letter-spacing:.04em}
@@ -134,46 +117,7 @@ footer a{color:var(--muted)}
   Datele sunt publice și sunt afișate pentru prospectare comercială B2B. <a href="/gdpr.html">Datele firmei dumneavoastră</a> · <a href="/cerere.html">Cerere de scoatere din bază</a>.
   <br>© AiVenture S.R.L. (CUI 51415878) · FirmsFinder AI v1.0
 </footer>
-<section class="lead" id="oferta" aria-label="Cerere ofertă">
-  <h2>Completați formularul și primiți o ofertă personalizată.</h2>
-  <form id="lf" autocomplete="on" novalidate>
-    <label class="t" for="l_nume">Nume și Prenume *</label><input type="text" id="l_nume" autocomplete="name" maxlength="120">
-    <label class="t" for="l_email">Email *</label><input type="email" id="l_email" autocomplete="email" maxlength="160">
-    <label class="t" for="l_tel">Telefon *</label><input type="tel" id="l_tel" autocomplete="tel" maxlength="30">
-    <label class="t" for="l_judet">Județ *</label><select id="l_judet"><option value="">Selectează județul</option><option>Alba</option><option>Arad</option><option>Argeș</option><option>Bacău</option><option>Bihor</option><option>Bistrița-Năsăud</option><option>Botoșani</option><option>Brașov</option><option>Brăila</option><option>București</option><option>Buzău</option><option>Caraș-Severin</option><option>Călărași</option><option>Cluj</option><option>Constanța</option><option>Covasna</option><option>Dâmbovița</option><option>Dolj</option><option>Galați</option><option>Giurgiu</option><option>Gorj</option><option>Harghita</option><option>Hunedoara</option><option>Ialomița</option><option>Iași</option><option>Ilfov</option><option>Maramureș</option><option>Mehedinți</option><option>Mureș</option><option>Neamț</option><option>Olt</option><option>Prahova</option><option>Satu Mare</option><option>Sălaj</option><option>Sibiu</option><option>Suceava</option><option>Teleorman</option><option>Timiș</option><option>Tulcea</option><option>Vaslui</option><option>Vâlcea</option><option>Vrancea</option></select>
-    <p class="p">Sunt de acord să primesc comunicări comerciale ulterioare pe:</p>
-    <div class="row">
-      <label class="ck"><input type="checkbox" id="l_ctel"> Telefon</label>
-      <label class="ck"><input type="checkbox" id="l_csms"> SMS</label>
-      <label class="ck"><input type="checkbox" id="l_cemail"> E-mail</label>
-    </div>
-    <label class="ck"><input type="checkbox" id="l_recl"> Sunt de acord ca datele mele să fie folosite pentru afișarea de reclame personalizate (custom audience, GDN)</label>
-    <label class="ck"><input type="checkbox" id="l_pol"> <span>Am citit și am înțeles <a href="/gdpr.html" target="_blank">politica de prelucrare a datelor personale</a> *</span></label>
-    <label class="ck"><input type="checkbox" id="l_term"> <span>Sunt de acord cu <a href="/termeni.html" target="_blank">termenii și condițiile</a> *</span></label>
-    <button type="submit">Trimite</button>
-    <div id="lmsg" role="status"></div>
-  </form>
-</section>
-<script>
-(function(){
-  const g = id => document.getElementById(id);
-  g("lf").addEventListener("submit", async e => {
-    e.preventDefault();
-    const m = g("lmsg"), b = g("lf").querySelector("button");
-    const d = { nume: g("l_nume").value, email: g("l_email").value, telefon: g("l_tel").value, judet: g("l_judet").value,
-      com_telefon: g("l_ctel").checked, com_sms: g("l_csms").checked, com_email: g("l_cemail").checked,
-      reclame: g("l_recl").checked, politica: g("l_pol").checked, termeni: g("l_term").checked, pagina: location.pathname };
-    m.className = ""; m.textContent = "Se trimite…"; b.disabled = true;
-    try {
-      const r = await fetch("/api/lead", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(d) });
-      const j = await r.json();
-      if (!r.ok) { m.className = "errm"; m.textContent = j.eroare || "Eroare."; b.disabled = false; return; }
-      m.className = "okm"; m.textContent = "Mulțumim! Am primit datele și vă contactăm în curând cu o ofertă personalizată.";
-      g("lf").reset(); b.disabled = false;
-    } catch (x) { m.className = "errm"; m.textContent = "Nu s-a putut trimite. Scrieți-ne la contact@5thelement.ai."; b.disabled = false; }
-  });
-})();
-</script>
+<script src="/legal/lead.js"></script>
 
 </div>
 

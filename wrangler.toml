@@ -6,7 +6,9 @@ compatibility_date = "2026-09-01"
 workers_dev = true
 routes = [
   { pattern = "1clic-ia.eu", custom_domain = true },
-  { pattern = "firmsfinder.aiventure.ro", custom_domain = true }
+  { pattern = "firmsfinder.aiventure.ro", custom_domain = true },
+  { pattern = "ecbtax.com/legal*", zone_name = "ecbtax.com" },
+  { pattern = "www.ecbtax.com/legal*", zone_name = "ecbtax.com" }
 ]
 
 [assets]
