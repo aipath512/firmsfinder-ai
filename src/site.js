@@ -69,7 +69,7 @@ function textDin(html) {
 
 // catalog de firme: multe CUI-uri diferite pe aceeași pagină
 function eCatalog(t) {
-  const c = new Set((t.match(/\b(?:RO\s?)?\d{6,9}\b/g) || []).map(x => x.replace(/\D/g, "")));
+  const c = new Set((t.match(/\b(?:RO\s?)?\d{7,9}\b/g) || []).map(x => x.replace(/\D/g, "")));
   return c.size >= 6 || /cod fiscal|cui:/gi.test(t) && (t.match(/cod fiscal|cui:/gi) || []).length >= 6;
 }
 
