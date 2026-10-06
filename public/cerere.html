@@ -1,11 +1,11 @@
 <!doctype html>
-<!-- FirmsFinder AI · public/gdpr.html · v1.0 · 2026-10-06 -->
+<!-- FirmsFinder AI · public/cerere.html · v1.0 · 2026-10-06 -->
 <html lang="ro">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Date personale și opoziție — FirmsFinder AI</title>
-<meta name="description" content="Informare privind prelucrarea datelor în FirmsFinder AI și formular de opoziție / ștergere din bază.">
+<title>Cerere de scoatere din bază — FirmsFinder AI</title>
+<meta name="description" content="Trimiteți o cerere de opoziție / scoatere a firmei din FirmsFinder AI.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -68,45 +68,65 @@ textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius
 #msg{margin-top:12px;font-weight:500}
 .ok{color:var(--ok)}.err{color:var(--bad)}
 a{color:var(--brand)}
+.done{text-align:center;padding:30px 10px}.done .big{font-size:44px;line-height:1;color:var(--ok)}.done h2{margin-top:10px}.nr{font-family:"JetBrains Mono",monospace;font-size:18px;color:var(--ink)}
 </style>
 </head>
 <body>
 <div class="wrap">
 <header>
   <div class="logo">◈ <a href="/" style="text-decoration:none"><b>FirmsFinder AI</b></a> · by AiVenture</div>
-  <h1>Datele firmei dumneavoastră și <em>dreptul de opoziție.</em></h1>
-  <p class="sub">Ce date afișăm, de unde provin și cum puteți cere scoaterea firmei din rezultate.</p>
+  <h1>Cerere de scoatere a firmei <em>din bază.</em></h1>
+  <p class="sub">Pentru reprezentanții firmei. Cererea ajunge direct la echipa AiVenture (contact@5thelement.ai). Detalii despre date: <a href="/gdpr.html">informarea privind datele</a>.</p>
 </header>
 
-<div class="doc">
-  <h2>Cine prelucrează datele</h2>
-  <p>AiVenture S.R.L., CUI 51415878, Nr. Reg. Com. J2025016406000, București, Sectorul 1, Drumul Pădurea Pustnicu nr. 141C, Corp A, Etaj 2, Ap. 5. Contact: <a href="mailto:contact@5thelement.ai">contact@5thelement.ai</a>.</p>
-
-  <h2>Ce date afișăm și de unde provin</h2>
-  <ul>
-    <li><b>Registrul Comerțului (ONRC)</b>: denumire, CUI, formă juridică, adresa sediului, data înmatriculării, activități CAEN, starea firmei.</li>
-    <li><b>Ministerul Finanțelor</b>: indicatori din situațiile financiare anuale 2023–2025 (cifră de afaceri, profit, număr de salariați etc.).</li>
-  </ul>
-  <p>Ambele surse sunt seturi de date publice, publicate pe data.gov.ro sub licența OGL-ROU-1.0. Nu colectăm date din alte surse și nu afișăm date despre asociați, administratori sau angajați.</p>
-
-  <h2>De ce și pe ce temei</h2>
-  <p>Scopul este prospectarea comercială între firme (B2B): găsirea de clienți, parteneri și furnizori potriviți. Datele firmelor (persoane juridice) nu sunt date personale. Pentru formele de organizare ale persoanelor fizice (PFA, întreprindere individuală, întreprindere familială), unele informații pot fi date personale; le prelucrăm în baza interesului legitim (art. 6 alin. 1 lit. f GDPR), în limitele informațiilor deja publicate oficial.</p>
-
-  <h2>Drepturile dumneavoastră</h2>
-  <p>Aveți dreptul de acces, de rectificare, de ștergere și de <b>opoziție</b> (art. 15–21 GDPR), precum și dreptul de a depune plângere la Autoritatea Națională de Supraveghere a Prelucrării Datelor cu Caracter Personal (ANSPDCP, <a href="https://www.dataprotection.ro" rel="noopener">dataprotection.ro</a>).</p>
-  <p>Dacă datele oficiale sunt greșite, corectarea se face la sursă (ONRC sau Ministerul Finanțelor); la următoarea actualizare a bazei, corecția apare și aici.</p>
-</div>
-
+<div id="ecran-form">
 <div class="doc">
   <h2>Cerere de opoziție / scoatere din bază</h2>
-  <p>Reprezentați o firmă și doriți să nu mai apară în rezultatele FirmsFinder AI? Trimiteți cererea din pagina dedicată. Ajunge direct la echipa AiVenture.</p>
-  <p><a class="go" href="/cerere.html" style="display:inline-block;padding:11px 18px;border-radius:9px;color:#fff;text-decoration:none;font-weight:600">Trimite o cerere →</a></p>
+  <p>Completați formularul pentru firma pe care o reprezentați. Verificăm cererea (pentru ca nimeni să nu poată scoate firma altcuiva) și o rezolvăm în cel mult 30 de zile, de regulă mult mai repede. Vă confirmăm pe email.</p>
+  <form id="g" autocomplete="on" style="grid-template-columns:repeat(12,1fr)">
+    <div class="c4"><label for="cui">CUI firmă *</label><input id="cui" inputmode="numeric" placeholder="ex. 51415878"></div>
+    <div class="c4"><label for="nume">Numele dumneavoastră *</label><input id="nume" autocomplete="name"></div>
+    <div class="c4"><label for="email">Email *</label><input id="email" type="email" autocomplete="email"></div>
+    <div class="c4"><label for="calitate">Calitatea</label>
+      <select id="calitate"><option>Administrator / asociat</option><option>Titular PFA / II / IF</option><option>Împuternicit</option><option>Altă calitate</option></select></div>
+    <div class="c12"><label for="motiv">Mesaj (opțional)</label><textarea id="motiv" maxlength="1000"></textarea></div>
+    <div class="c12"><label class="chk" style="text-transform:none;font-weight:500;letter-spacing:0"><input type="checkbox" id="acord"> Confirm că reprezint firma de mai sus și cer scoaterea ei din rezultatele FirmsFinder AI.</label></div>
+    <div class="c12 btns"><button class="go" type="submit">Trimite cererea</button></div>
+  </form>
+  <div id="msg"></div>
+</div>
+
+</div>
+
+<div id="ecran-ok" class="doc done" hidden>
+  <div class="big">✓</div>
+  <h2>Cererea a fost trimisă</h2>
+  <p>Firma: <b id="ok-firma"></b></p>
+  <p>Număr cerere: <span class="nr" id="ok-nr"></span></p>
+  <p>Echipa AiVenture verifică cererea și vă răspunde pe email, de regulă în câteva zile lucrătoare (cel mult 30 de zile, conform GDPR). Păstrați numărul cererii.</p>
+  <p><a href="/">← Înapoi la căutare</a></p>
 </div>
 
 <footer>
-  <a href="/">← Înapoi la căutare</a> · Sursa datelor: ONRC / Ministerul Finanțelor, data.gov.ro (OGL-ROU-1.0).
+  <a href="/">Căutare</a> · <a href="/gdpr.html">Datele firmei dumneavoastră</a> · Contact: <a href="mailto:contact@5thelement.ai">contact@5thelement.ai</a>
   <br>© AiVenture S.R.L. (CUI 51415878) · FirmsFinder AI v1.0
 </footer>
 </div>
+<script>
+const $ = s => document.querySelector(s);
+$("#g").addEventListener("submit", async e => {
+  e.preventDefault();
+  const m = $("#msg"), b = $("#g button[type=submit]"); m.className = ""; m.textContent = "Se trimite…"; b.disabled = true;
+  try {
+    const r = await fetch("/api/opozitie", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ cui: $("#cui").value, nume: $("#nume").value, email: $("#email").value, calitate: $("#calitate").value, motiv: $("#motiv").value, acord: $("#acord").checked }) });
+    const d = await r.json();
+    if (!r.ok) { m.className = "err"; m.textContent = d.eroare || "Eroare."; b.disabled = false; return; }
+    $("#ok-firma").textContent = d.denumire;
+    $("#ok-nr").textContent = d.nr ? "FF-" + String(d.nr).padStart(5, "0") : (d.repetat ? "deja înregistrată azi" : "—");
+    $("#ecran-form").hidden = true; $("#ecran-ok").hidden = false; scrollTo(0, 0);
+  } catch (x) { m.className = "err"; m.textContent = "Nu s-a putut trimite. Scrieți-ne la contact@5thelement.ai."; b.disabled = false; }
+});
+</script>
 </body>
 </html>

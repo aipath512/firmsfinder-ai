@@ -160,7 +160,42 @@ async function opozitie(request, env) {
   const deja = await env.DB.prepare("SELECT COUNT(*) AS n FROM cereri_gdpr WHERE cui = ? AND email = ? AND data > datetime('now','-1 day')")
     .bind(Number(cui), email).first();
   if (deja && deja.n > 0) return json({ ok: true, denumire: firma.denumire, repetat: true });
-  await env.DB.prepare("INSERT INTO cereri_gdpr (data, cui, denumire, nume, email, calitate, motiv) VALUES (datetime('now'), ?, ?, ?, ?, ?, ?)")
+  const ins = await env.DB.prepare("INSERT INTO cereri_gdpr (data, cui, denumire, nume, email, calitate, motiv) VALUES (datetime('now'), ?, ?, ?, ?, ?, ?)")
     .bind(Number(cui), firma.denumire, nume, email, calitate, motiv).run();
-  return json({ ok: true, denumire: firma.denumire });
+  const id = ins && ins.meta ? ins.meta.last_row_id : null;
+  const trimis = await emailCerere(env, { id, cui, denumire: firma.denumire, nume, email, calitate, motiv });
+  return json({ ok: true, denumire: firma.denumire, nr: id, email_trimis: trimis });
+}
+
+// Trimite cererea pe email la contact@5thelement.ai prin Resend (secretul RESEND_API_KEY în setările Worker-ului).
+async function emailCerere(env, c) {
+  if (!env.RESEND_API_KEY) return false;
+  const text = [
+    "Cerere nouă de opoziție / scoatere din FirmsFinder AI",
+    "",
+    "Nr. cerere: " + (c.id ?? "—"),
+    "Firmă: " + c.denumire,
+    "CUI: " + c.cui,
+    "Solicitant: " + c.nume + " (" + (c.calitate || "—") + ")",
+    "Email: " + c.email,
+    "Mesaj: " + (c.motiv || "—"),
+    "",
+    "Cererea este salvată în D1 b2b-romania-db, tabelul cereri_gdpr, cu starea „noua”.",
+    "După verificare, scrieți lui Claude: „aprobă cererea " + (c.id ?? "") + "” — firma iese din rezultate.",
+    "Răspundeți direct la acest email ca să-i scrieți solicitantului.",
+  ].join("\n");
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "authorization": "Bearer " + env.RESEND_API_KEY, "content-type": "application/json" },
+      body: JSON.stringify({
+        from: env.FROM_EMAIL || "FirmsFinder AI <no-reply@eu-ai-act-ready.eu>",
+        to: [env.EMAIL_CERERI || "contact@5thelement.ai"],
+        reply_to: c.email,
+        subject: "FirmsFinder AI — cerere de opoziție nr. " + (c.id ?? "") + " — " + c.denumire + " (CUI " + c.cui + ")",
+        text,
+      }),
+    });
+    return r.ok;
+  } catch { return false; }
 }
