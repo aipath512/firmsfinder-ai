@@ -13,6 +13,10 @@ routes = [
 directory = "./public"
 binding = "ASSETS"
 
+[[kv_namespaces]]
+binding = "LEADS"
+id = "35fa9c9cd8b5418e983f25ba8362ac41"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "b2b-romania-db"

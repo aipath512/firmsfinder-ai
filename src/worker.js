@@ -22,6 +22,7 @@ export default {
       if (url.pathname === "/api/stari") return await stari(env);
       if (url.pathname === "/api/cauta") return await cauta(url, env);
       if (url.pathname === "/api/opozitie" && request.method === "POST") return await opozitie(request, env);
+      if (url.pathname === "/api/lead" && request.method === "POST") return await lead(request, env);
       if (url.pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /api/\n", { headers: { "content-type": "text/plain" } });
       if (url.pathname.startsWith("/api/")) return json({ eroare: "Adresă necunoscută." }, 404);
     } catch (e) {
@@ -199,5 +200,66 @@ async function emailCerere(env, c) {
     });
     const corp = await r.text();
     return (r.ok ? "OK " : "EROARE " + r.status + " ") + corp;
+  } catch (e) { return "EXCEPTIE " + String(e); }
+}
+
+// Formularul „primiți o ofertă personalizată” — salvat în KV (LEADS), cu acordurile și textul lor, + email la contact@5thelement.ai.
+const TEXT_ACORDURI = {
+  versiune: "v1.0 · 2026-10-06",
+  com_telefon: "Sunt de acord să primesc comunicări comerciale ulterioare pe: Telefon",
+  com_sms: "Sunt de acord să primesc comunicări comerciale ulterioare pe: SMS",
+  com_email: "Sunt de acord să primesc comunicări comerciale ulterioare pe: E-mail",
+  reclame: "Sunt de acord ca datele mele să fie folosite pentru afișarea de reclame personalizate (custom audience, GDN)",
+  politica: "Am citit și am înțeles politica de prelucrare a datelor personale (/gdpr.html)",
+  termeni: "Sunt de acord cu termenii și condițiile (/termeni.html)",
+};
+
+async function lead(request, env) {
+  let d;
+  try { d = await request.json(); } catch { return json({ eroare: "Cerere invalidă." }, 400); }
+  const t = (v, n) => String(v ?? "").trim().slice(0, n);
+  const nume = t(d.nume, 120), email = t(d.email, 160), telefon = t(d.telefon, 30), judet = t(d.judet, 40);
+  if (nume.length < 3) return json({ eroare: "Completați numele și prenumele." }, 400);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ eroare: "Adresă de email invalidă." }, 400);
+  if (telefon.replace(/\D/g, "").length < 9) return json({ eroare: "Număr de telefon invalid." }, 400);
+  if (!JUDETE.includes(judet)) return json({ eroare: "Selectați județul." }, 400);
+  if (!d.politica) return json({ eroare: "Bifați că ați citit politica de prelucrare a datelor." }, 400);
+  if (!d.termeni) return json({ eroare: "Bifați acordul cu termenii și condițiile." }, 400);
+  if (!env.LEADS) return json({ eroare: "Stocarea nu este configurată." }, 500);
+  const acum = new Date().toISOString();
+  const acorduri = {};
+  for (const k of ["com_telefon", "com_sms", "com_email", "reclame", "politica", "termeni"]) acorduri[k] = !!d[k];
+  const inreg = {
+    data: acum, nume, email, telefon, judet, acorduri, text_acorduri: TEXT_ACORDURI,
+    pagina: t(d.pagina, 100), tara: (request.cf && request.cf.country) || null,
+    agent: t(request.headers.get("user-agent"), 200),
+  };
+  const cheie = "lead:" + acum + ":" + crypto.randomUUID().slice(0, 8);
+  await env.LEADS.put(cheie, JSON.stringify(inreg, null, 2), { metadata: { nume, judet, email, data: acum } });
+  const canale = ["com_telefon", "com_sms", "com_email"].filter(k => acorduri[k]).map(k => k.slice(4)).join(", ") || "niciunul";
+  await trimiteEmail(env, "FirmsFinder AI — cerere de ofertă — " + nume + " (" + judet + ")", [
+    "Cerere nouă de ofertă personalizată (FirmsFinder AI)",
+    "",
+    "Nume: " + nume, "Email: " + email, "Telefon: " + telefon, "Județ: " + judet,
+    "Comunicări comerciale acceptate pe: " + canale,
+    "Reclame personalizate: " + (acorduri.reclame ? "DA" : "nu"),
+    "Politica date: DA · Termeni: DA",
+    "Data: " + acum, "Pagina: " + inreg.pagina,
+    "",
+    "Salvat în Cloudflare KV „firmsfinder-leads”, cheia: " + cheie,
+  ].join("\n"), email);
+  return json({ ok: true });
+}
+
+async function trimiteEmail(env, subiect, text, replyTo) {
+  if (!env.RESEND_API_KEY) return "LIPSA RESEND_API_KEY";
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "authorization": "Bearer " + env.RESEND_API_KEY, "content-type": "application/json" },
+      body: JSON.stringify({ from: env.FROM_EMAIL || "FirmsFinder AI <no-reply@eu-ai-act-ready.eu>",
+        to: [env.EMAIL_CERERI || "contact@5thelement.ai"], reply_to: replyTo, subject: subiect, text }),
+    });
+    return (r.ok ? "OK " : "EROARE " + r.status + " ") + (await r.text());
   } catch (e) { return "EXCEPTIE " + String(e); }
 }
