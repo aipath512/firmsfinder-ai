@@ -9,7 +9,7 @@ const FORME = /\b(S\.?\s?R\.?\s?L\.?|S\.?\s?A\.?|S\.?\s?C\.?\s?S\.?|S\.?\s?N\.?\
 const BRAVE_ZI = 30;      // 30 × 31 zile = 930 < 1.000 căutări gratuite/lună
 const BUGET = 45;         // cereri externe per firmă (planul gratuit Workers permite 50/invocare)
 const PARCAT = /domain (is )?for sale|domeniul (este )?de vanzare|cumpara (acest )?domeniu|buy this domain|parked (free|domain)|sedoparking|dan\.com|afternic|this domain (name )?(may be|is) for sale|hugedomains|domain parking/i;
-const DIRECTOARE = /listafirme|termene|risco|firme\.info|firmepenet|totalfirme|infofirme|romanian-companies|confidas|demoanaf|mfinante|onrc|facebook|linkedin|instagram|youtube|tiktok|twitter|x\.com|google\.|wikipedia|paginiaurii|cylex|infobel|tripadvisor|olx|anaf\.ro|portal\.just|europages|kompass|dnb\.com|opencorporates|companiesintheuk|firmeromania|lista-firme|topfirme|endole|bizbuysell/i;
+const DIRECTOARE = /voloaga|targetare|e-firma|firmeonline|ro-firme|romaniafirme|firme-romania|registrulfirmelor|ghidulfirmelor|infocui|cui\.|catalog|anuar|director|listafirme|termene|risco|firme\.info|firmepenet|totalfirme|infofirme|romanian-companies|confidas|demoanaf|mfinante|onrc|facebook|linkedin|instagram|youtube|tiktok|twitter|x\.com|google\.|wikipedia|paginiaurii|cylex|infobel|tripadvisor|olx|anaf\.ro|portal\.just|europages|kompass|dnb\.com|opencorporates|companiesintheuk|firmeromania|lista-firme|topfirme|endole|bizbuysell/i;
 
 // cuvinte-indiciu pe diviziuni CAEN (primele 2 cifre) — pentru nivelul „probabil”
 const INDICII = [
@@ -67,8 +67,15 @@ function textDin(html) {
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
 }
 
+// catalog de firme: multe CUI-uri diferite pe aceeași pagină
+function eCatalog(t) {
+  const c = new Set((t.match(/\b(?:RO\s?)?\d{6,9}\b/g) || []).map(x => x.replace(/\D/g, "")));
+  return c.size >= 6 || /cod fiscal|cui:/gi.test(t) && (t.match(/cod fiscal|cui:/gi) || []).length >= 6;
+}
+
 function verifica(html, cui, denumire) {
   const t = textDin(html);
+  if (eCatalog(t)) return null;
   const cifre = t.replace(/\s/g, "");
   if (new RegExp("(RO)?" + cui + "(?!\\d)").test(cifre)) return "cui";
   const n = curata(denumire);
