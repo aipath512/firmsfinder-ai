@@ -61,11 +61,16 @@ function extrage(html, baza) {
   return { titlu, descriere, emailuri, telefoane, jsonld, linkuri: [...new Map(linkuri.map(l => [l.u, l])).values()].slice(0, 3) };
 }
 
-export async function site(url, env) {
+export async function site(url, env, ctx) {
   const p = url.searchParams;
   const tok = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='admin_token'").first();
   if (!tok || p.get("k") !== tok.valoare) return new Response("Acces interzis.", { status: 403 });
   const cui = Number(p.get("cui"));
+  if (ctx && p.get("fundal") === "1") { ctx.waitUntil(proceseaza(cui, env)); return Response.json({ pornit: true, cui }); }
+  return proceseaza(cui, env);
+}
+
+async function proceseaza(cui, env) {
   const f = await env.DB.prepare("SELECT cui, denumire, web FROM onrc_firme WHERE cui = ?").bind(cui).first();
   if (!f) return Response.json({ eroare: "CUI negăsit" }, { status: 404 });
   const incercari = [];
