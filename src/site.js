@@ -241,7 +241,7 @@ export async function lot(env, n = 1) {
     if (v.results.length) { const out = []; for (const x of v.results) out.push(await proceseaza(x.cui, env)); return out; }
   }
   const r = await env.DB.prepare(`SELECT m.cui FROM mf_bilant_2024 m INDEXED BY ix_mf_2024_ca
-    WHERE m.cifra_afaceri > 0 AND NOT EXISTS (SELECT 1 FROM firme_site s WHERE s.cui = m.cui)
+    WHERE m.cifra_afaceri > 0 AND EXISTS (SELECT 1 FROM onrc_firme o WHERE o.cui = m.cui AND o.top = 1) AND NOT EXISTS (SELECT 1 FROM firme_site s WHERE s.cui = m.cui)
     ORDER BY m.cifra_afaceri DESC LIMIT ?`).bind(n).all();
   const out = [];
   for (const x of r.results) out.push(await proceseaza(x.cui, env));

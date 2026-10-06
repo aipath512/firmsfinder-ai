@@ -93,6 +93,8 @@ async function cauta(url, env) {
     valori = sect.div.flatMap(([a, z]) => [String(a).padStart(2, "0"), String(z + 1).padStart(2, "0")]);
   }
   else return json({ eroare: "Alegeți o activitate (cod CAEN din 4 cifre) sau o industrie din cerc." }, 400);
+  // top = 1: firme (SRL, SA…); top = 0: PFA / II / IF — rămân în bază, nu se afișează
+  conditii.push("f.top = 1");
   const judet = (p.get("judet") || "").trim();
   if (judet) {
     if (!JUDETE.includes(judet)) return json({ eroare: "Județ necunoscut." }, 400);
