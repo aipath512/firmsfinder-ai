@@ -147,9 +147,9 @@ async function cautaBrave(f, env, b) {
   b.n++;
   await braveNumara(env);
   try {
-    const r = await fetch("https://api.search.brave.com/res/v1/web/search?count=10&country=RO&search_lang=ro&q=" + encodeURIComponent(q),
+    const r = await fetch("https://api.search.brave.com/res/v1/web/search?count=10&q=" + encodeURIComponent(q),
       { headers: { "accept": "application/json", "x-subscription-token": env.BRAVE_KEY } });
-    if (!r.ok) return [{ eroare: "brave " + r.status }];
+    if (!r.ok) return [{ eroare: "brave " + r.status + " " + (await r.text()).slice(0, 160) }];
     const j = await r.json();
     const vazute = new Set();
     return (j.web?.results || []).map(x => x.url).filter(u => {
@@ -237,7 +237,7 @@ export async function lot(env, n = 1) {
   // întâi: reîncearcă firmele negăsite care nu au avut încă acces la căutare (fără cheie / plafon atins)
   if (await braveDisponibil(env)) {
     const v = await env.DB.prepare(`SELECT cui FROM firme_site WHERE verificat IN (0, 2)
-      AND (incercari LIKE '%fără BRAVE_KEY%' OR incercari LIKE '%plafon zilnic%') LIMIT ?`).bind(n).all();
+      AND (incercari LIKE '%fără BRAVE_KEY%' OR incercari LIKE '%plafon zilnic%' OR incercari LIKE '%căutare → brave %') LIMIT ?`).bind(n).all();
     if (v.results.length) { const out = []; for (const x of v.results) out.push(await proceseaza(x.cui, env)); return out; }
   }
   const r = await env.DB.prepare(`SELECT m.cui FROM mf_bilant_2024 m INDEXED BY ix_mf_2024_ca
