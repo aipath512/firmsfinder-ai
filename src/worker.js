@@ -8,6 +8,8 @@ const MAX_PAGINI = 20;
 const MAX_CSV = 500;
 const STARI_CURATE = ["1048", "1112"]; // în funcțiune, fără alte mențiuni
 
+const SECTOARE = {"comert": {"nume": "Comerț", "div": [[45, 47]]}, "servicii-prof": {"nume": "Servicii profesionale", "div": [[69, 75]]}, "constructii": {"nume": "Construcții", "div": [[41, 43]]}, "transport": {"nume": "Transport și logistică", "div": [[49, 53]]}, "industrie": {"nume": "Industrie", "div": [[10, 33]]}, "it": {"nume": "IT și comunicații", "div": [[58, 63]]}, "alte-servicii": {"nume": "Alte servicii", "div": [[90, 96]]}, "horeca": {"nume": "HoReCa", "div": [[55, 56]]}, "suport": {"nume": "Servicii suport", "div": [[77, 82]]}, "sanatate": {"nume": "Sănătate", "div": [[86, 88]]}, "imobiliare": {"nume": "Imobiliare", "div": [[68, 68]]}, "agricultura": {"nume": "Agricultură", "div": [[1, 3]]}, "educatie": {"nume": "Educație", "div": [[85, 85]]}, "financiar": {"nume": "Financiar", "div": [[64, 66]]}, "energie": {"nume": "Energie și utilități", "div": [[35, 39]]}};
+
 const JUDETE = ["Alba","Arad","Argeș","Bacău","Bihor","Bistrița-Năsăud","Botoșani","Brașov","Brăila","București",
   "Buzău","Caraș-Severin","Călărași","Cluj","Constanța","Covasna","Dâmbovița","Dolj","Galați","Giurgiu","Gorj",
   "Harghita","Hunedoara","Ialomița","Iași","Ilfov","Maramureș","Mehedinți","Mureș","Neamț","Olt","Prahova",
@@ -75,9 +77,14 @@ async function stari(env) {
 async function cauta(url, env) {
   const p = url.searchParams;
   const cod = (p.get("caen") || "").trim();
-  if (!/^\d{4}$/.test(cod)) return json({ eroare: "Alegeți o activitate (cod CAEN din 4 cifre)." }, 400);
-
-  const conditii = ["b.caen_mf = ?"], valori = [cod];
+  const sect = SECTOARE[(p.get("sector") || "").trim()];
+  let conditii, valori;
+  if (/^\d{4}$/.test(cod)) { conditii = ["b.caen_mf = ?"]; valori = [cod]; }
+  else if (sect) {
+    conditii = ["(" + sect.div.map(() => "(b.caen_mf >= ? AND b.caen_mf < ?)").join(" OR ") + ")"];
+    valori = sect.div.flatMap(([a, z]) => [String(a).padStart(2, "0"), String(z + 1).padStart(2, "0")]);
+  }
+  else return json({ eroare: "Alegeți o activitate (cod CAEN din 4 cifre) sau o industrie din cerc." }, 400);
   const judet = (p.get("judet") || "").trim();
   if (judet) {
     if (!JUDETE.includes(judet)) return json({ eroare: "Județ necunoscut." }, 400);
@@ -104,11 +111,12 @@ async function cauta(url, env) {
     profit: "b.profit_net DESC",
     nou: "f.data_inmatriculare DESC",
   };
-  const ordine = ORDINI[p.get("sort")] || ORDINI.ca;
+  // Industrie întreagă (cercul): mii de firme → ordonăm mereu după cifra de afaceri, pe indexul ix_mf_2024_ca (rapid).
+  const ordine = sect ? ORDINI.ca : (ORDINI[p.get("sort")] || ORDINI.ca);
   // La ordonarea după creștere ignorăm firmele foarte mici în 2023 (altfel 3.600 → 250.000 lei apare „+6.900%”).
-  if (p.get("sort") === "crestere") { conditii.push("a.cifra_afaceri >= ?"); valori.push(100000); }
+  if (!sect && p.get("sort") === "crestere") { conditii.push("a.cifra_afaceri >= ?"); valori.push(100000); }
   // CROSS JOIN = pornește de la bilanțurile activității (index caen_mf), apoi caută firma după CUI. Rapid (<0,1 s).
-  const DIN = `FROM mf_bilant_2024 b CROSS JOIN onrc_firme f ON f.cui = b.cui
+  const DIN = `FROM mf_bilant_2024 b${sect ? " INDEXED BY ix_mf_2024_ca" : ""} CROSS JOIN onrc_firme f ON f.cui = b.cui
     LEFT JOIN mf_bilant_2023 a ON a.cui = b.cui
     LEFT JOIN mf_bilant_2025 c ON c.cui = b.cui
     WHERE ${conditii.join(" AND ")}`;
@@ -126,7 +134,7 @@ async function cauta(url, env) {
 
   const [rez, tot] = await Promise.all([
     env.DB.prepare(sql).bind(...valori).all(),
-    csv ? Promise.resolve(null) : env.DB.prepare(`SELECT COUNT(*) AS n ${DIN}`).bind(...valori).first(),
+    csv ? Promise.resolve(null) : env.DB.prepare(`SELECT COUNT(*) AS n FROM (SELECT 1 ${DIN.replace(" INDEXED BY ix_mf_2024_ca", "")} LIMIT 5001)`).bind(...valori).first(),
   ]);
 
   if (csv) {
@@ -140,7 +148,7 @@ async function cauta(url, env) {
     }
     linii.push("", "Sursa: ONRC / MF, data.gov.ro — FirmsFinder AI");
     return new Response("﻿" + linii.join("\r\n"), {
-      headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="firmsfinder_${cod}.csv"` },
+      headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="firmsfinder_${cod || p.get("sector")}.csv"` },
     });
   }
   return json({ total: tot ? tot.n : 0, pagina, pe_pagina: PE_PAGINA, rezultate: rez.results });
