@@ -1,0 +1,196 @@
+<!doctype html>
+<!-- FirmsFinder AI · public/index.html · v1.0 · 2026-10-06 -->
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FirmsFinder AI — Descoperiți viitorii clienți</title>
+<meta name="description" content="FirmsFinder AI — Descoperiți firmele pe care nu le știți: viitorii clienți. 1,78 milioane de firme active din România, cu bilanțurile 2023–2025.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#16202a;--muted:#5d6873;--line:#e2ddd2;--brand:#0f4c5c;--brand2:#e36414;--ok:#2d7a46;--bad:#b23a3a;--warn:#a86b00}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11161b;--card:#1a2128;--ink:#e8e4dc;--muted:#9aa4ad;--line:#2a333c;--brand:#5fb3c4;--brand2:#f08a4b;--ok:#5cbf7a;--bad:#e07070;--warn:#e0a640}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+header{padding:28px 0 8px}
+.logo{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--muted);letter-spacing:.04em}
+.logo b{color:var(--brand)}
+h1{font-family:Fraunces,Georgia,serif;font-weight:600;font-size:clamp(28px,5vw,44px);line-height:1.1;margin:14px 0 8px}
+h1 em{font-style:normal;color:var(--brand2)}
+.sub{color:var(--muted);max-width:720px;margin:0 0 20px}
+.stats{display:flex;flex-wrap:wrap;gap:8px 22px;font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--muted);margin-bottom:22px}
+.stats span b{color:var(--ink)}
+form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+input,select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font:inherit}
+input:focus,select:focus{outline:2px solid var(--brand);outline-offset:-1px}
+.c12{grid-column:span 12}.c6{grid-column:span 6}.c4{grid-column:span 4}.c3{grid-column:span 3}
+@media(max-width:760px){.c6,.c4,.c3{grid-column:span 12}}
+.act{position:relative}
+.sug{position:absolute;z-index:5;left:0;right:0;top:100%;background:var(--card);border:1px solid var(--line);border-radius:9px;margin-top:4px;max-height:300px;overflow:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.sug div{padding:9px 11px;cursor:pointer;border-bottom:1px solid var(--line)}
+.sug div:hover,.sug div.on{background:var(--bg)}
+.sug code{font-family:"JetBrains Mono",monospace;color:var(--brand);margin-right:8px}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px}
+.chk input{width:auto}
+.btns{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+button{border:0;border-radius:9px;padding:11px 18px;font:600 15px Inter,sans-serif;cursor:pointer}
+.go{background:var(--brand);color:#fff}
+.dl{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.ex{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}
+.ex button{background:transparent;border:1px dashed var(--line);color:var(--muted);font-weight:500;font-size:13px;padding:7px 11px}
+.ex button:hover{color:var(--brand);border-color:var(--brand)}
+#info{margin:22px 0 10px;color:var(--muted);font-size:14px}
+#info b{color:var(--ink)}
+.res{display:grid;gap:10px}
+.firma{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:6px 16px}
+.firma h3{margin:0;font-size:16px}
+.meta{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted)}
+.nums{display:flex;gap:18px;flex-wrap:wrap;font-size:13.5px;grid-column:1/-1}
+.nums div span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.tr{font-family:"JetBrains Mono",monospace;font-weight:500;font-size:13px;align-self:start;white-space:nowrap}
+.up{color:var(--ok)}.down{color:var(--bad)}
+.risc{grid-column:1/-1;font-size:12.5px;color:var(--warn)}
+.pag{display:flex;gap:8px;justify-content:center;margin:20px 0}
+.pag button{background:var(--card);border:1px solid var(--line);color:var(--ink)}
+.pag button:disabled{opacity:.4;cursor:default}
+footer{margin:40px 0 30px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+footer a{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="logo">◈ <b>FirmsFinder AI</b> · by AiVenture</div>
+  <h1>Descoperiți firmele pe care nu le știți: <em>viitorii clienți.</em></h1>
+  <p class="sub">Alegeți activitatea clienților pe care îi căutați, zona și mărimea lor. Primiți lista firmelor reale, cu cifra de afaceri, salariații și evoluția pe 3 ani.</p>
+  <div class="stats"><span><b>1,78 mil.</b> firme active</span><span><b>~970.000</b> bilanțuri / an</span><span><b>2023 · 2024 · 2025</b></span><span>date oficiale ONRC + MF</span></div>
+</header>
+
+<form id="f" autocomplete="off">
+  <div class="c12 act">
+    <label for="act">Activitatea clienților căutați *</label>
+    <input id="act" placeholder="Scrieți: contabilitate, construcții, software, restaurant… sau un cod CAEN">
+    <input type="hidden" id="caen">
+    <div class="sug" id="sug"></div>
+  </div>
+  <div class="c4"><label for="judet">Județ</label><select id="judet"><option value="">Toată țara</option></select></div>
+  <div class="c4"><label for="loc">Localitate / sector</label><input id="loc" placeholder="ex. Sectorul 1, Florești"></div>
+  <div class="c4"><label for="sort">Ordonare</label>
+    <select id="sort"><option value="ca">Cifra de afaceri</option><option value="crestere">Creștere 2023→2025</option><option value="sal">Număr salariați</option><option value="profit">Profit net</option><option value="nou">Cele mai noi firme</option></select></div>
+  <div class="c3"><label for="smin">Salariați de la</label><input id="smin" inputmode="numeric" placeholder="ex. 1"></div>
+  <div class="c3"><label for="smax">până la</label><input id="smax" inputmode="numeric" placeholder="ex. 50"></div>
+  <div class="c3"><label for="cmin">Cifră de afaceri min. (lei)</label><input id="cmin" inputmode="numeric" placeholder="ex. 500000"></div>
+  <div class="c3"><label for="trend">Evoluție 2023→2025</label>
+    <select id="trend"><option value="">Oricare</option><option value="up">În creștere</option><option value="down">În scădere</option></select></div>
+  <div class="c12 btns">
+    <button class="go" type="submit">Caută firmele</button>
+    <button class="dl" type="button" id="csv">Descarcă lista (CSV, max. 500)</button>
+    <label class="chk" style="margin:0;text-transform:none;font-weight:500;letter-spacing:0"><input type="checkbox" id="risc" checked> Doar firme fără semnale de risc</label>
+  </div>
+</form>
+<div class="ex" id="ex">
+  <button data-q='{"caen":"6920","t":"6920 · Contabilitate","judet":"București","smin":"1","sort":"crestere","trend":"up"}'>Contabili din București în creștere</button>
+  <button data-q='{"caen":"4120","t":"4120 · Construcții clădiri","judet":"Cluj","smin":"10","smax":"50"}'>Constructori din Cluj, 10–50 salariați</button>
+  <button data-q='{"caen":"6201","t":"6201 · Software la comandă","judet":"Iași","sort":"crestere","trend":"up"}'>Firme de software din Iași în creștere</button>
+  <button data-q='{"caen":"5610","t":"5610 · Restaurante","judet":"Brașov","smin":"5"}'>Restaurante din Brașov cu 5+ salariați</button>
+</div>
+
+<div id="info"></div>
+<div class="res" id="res"></div>
+<div class="pag" id="pag"></div>
+
+<footer>
+  Sursa datelor: ONRC / Ministerul Finanțelor, data.gov.ro (licență OGL-ROU-1.0). Bilanțurile 2025 pot fi încă incomplete (depuneri întârziate).
+  Datele sunt publice și sunt afișate pentru prospectare comercială B2B. Cereri de opoziție / ștergere: <a href="mailto:contact@5thelement.ai">contact@5thelement.ai</a>.
+  <br>© AiVenture S.R.L. (CUI 51415878) · FirmsFinder AI v1.0
+</footer>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const JUDETE = ["Alba","Arad","Argeș","Bacău","Bihor","Bistrița-Năsăud","Botoșani","Brașov","Brăila","București","Buzău","Caraș-Severin","Călărași","Cluj","Constanța","Covasna","Dâmbovița","Dolj","Galați","Giurgiu","Gorj","Harghita","Hunedoara","Ialomița","Iași","Ilfov","Maramureș","Mehedinți","Mureș","Neamț","Olt","Prahova","Satu Mare","Sălaj","Sibiu","Suceava","Teleorman","Timiș","Tulcea","Vaslui","Vâlcea","Vrancea"];
+for (const j of JUDETE) { const o = document.createElement("option"); o.value = o.textContent = j; $("#judet").append(o); }
+let STARI = {}; fetch("/api/stari").then(r => r.json()).then(d => STARI = d).catch(() => {});
+let pagina = 1, total = 0, tmr, sugIdx = -1;
+
+const lei = v => v === null || v === undefined ? "—" : new Intl.NumberFormat("ro-RO").format(v);
+const mil = v => v === null || v === undefined ? "—" : (Math.abs(v) >= 1e6 ? (v / 1e6).toLocaleString("ro-RO", { maximumFractionDigits: 1 }) + " mil." : lei(v));
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+$("#act").addEventListener("input", () => {
+  $("#caen").value = ""; clearTimeout(tmr);
+  const q = $("#act").value.trim();
+  if (q.length < 2) { $("#sug").style.display = "none"; return; }
+  tmr = setTimeout(async () => {
+    const d = await (await fetch("/api/caen?q=" + encodeURIComponent(q))).json();
+    sugIdx = -1;
+    $("#sug").innerHTML = d.length ? d.map(x => '<div data-c="' + x.clasa + '" data-t="' + esc(x.clasa + " · " + x.denumire) + '"><code>' + x.clasa + "</code>" + esc(x.denumire) + "</div>").join("") : '<div style="cursor:default">Nicio activitate găsită. Încercați alt cuvânt.</div>';
+    $("#sug").style.display = "block";
+  }, 200);
+});
+$("#act").addEventListener("keydown", e => {
+  const it = [...$("#sug").querySelectorAll("div[data-c]")];
+  if (!it.length || $("#sug").style.display !== "block") return;
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); sugIdx = (sugIdx + (e.key === "ArrowDown" ? 1 : -1) + it.length) % it.length; it.forEach((x, i) => x.classList.toggle("on", i === sugIdx)); }
+  if (e.key === "Enter" && sugIdx >= 0) { e.preventDefault(); alege(it[sugIdx]); }
+});
+$("#sug").addEventListener("click", e => { const d = e.target.closest("div[data-c]"); if (d) alege(d); });
+document.addEventListener("click", e => { if (!e.target.closest(".act")) $("#sug").style.display = "none"; });
+function alege(d) { $("#caen").value = d.dataset.c; $("#act").value = d.dataset.t; $("#sug").style.display = "none"; }
+
+function parametri(extra = {}) {
+  const p = new URLSearchParams();
+  p.set("caen", $("#caen").value);
+  for (const k of ["judet", "loc", "smin", "smax", "cmin", "trend", "sort"]) { const v = $("#" + k).value.trim(); if (v) p.set(k, v); }
+  if ($("#risc").checked) p.set("risc", "1");
+  for (const [k, v] of Object.entries(extra)) p.set(k, v);
+  return p;
+}
+function verifica() {
+  if (!/^\d{4}$/.test($("#caen").value)) { $("#info").innerHTML = "<b>Alegeți întâi o activitate din listă</b> (scrieți un cuvânt și apăsați pe o variantă)."; $("#act").focus(); return false; }
+  return true;
+}
+async function cauta() {
+  if (!verifica()) return;
+  $("#info").textContent = "Caut…"; $("#res").innerHTML = ""; $("#pag").innerHTML = "";
+  const t0 = performance.now();
+  const r = await fetch("/api/cauta?" + parametri({ pag: pagina }));
+  const d = await r.json();
+  if (!r.ok) { $("#info").textContent = d.eroare || "Eroare."; return; }
+  total = d.total;
+  const sec = ((performance.now() - t0) / 1000).toLocaleString("ro-RO", { maximumFractionDigits: 2 });
+  $("#info").innerHTML = "<b>" + lei(total) + "</b> firme găsite în " + sec + " s" + (total > d.pe_pagina ? " · pagina " + pagina + " din " + Math.min(Math.ceil(total / d.pe_pagina), 20) : "");
+  $("#res").innerHTML = d.rezultate.map(card).join("") || "<p>Nicio firmă nu corespunde. Lărgiți filtrele (de ex. scoateți localitatea sau evoluția).</p>";
+  const nrPag = Math.min(Math.ceil(total / d.pe_pagina), 20);
+  if (nrPag > 1) {
+    $("#pag").innerHTML = '<button id="pp"' + (pagina <= 1 ? " disabled" : "") + '>← Înapoi</button><button id="pn"' + (pagina >= nrPag ? " disabled" : "") + ">Înainte →</button>";
+    $("#pp").onclick = () => { pagina--; cauta(); scrollTo(0, $("#info").offsetTop - 10); };
+    $("#pn").onclick = () => { pagina++; cauta(); scrollTo(0, $("#info").offsetTop - 10); };
+  }
+}
+function card(x) {
+  const fin = x.ca_2025 ?? x.ca_2024, start = x.ca_2023;
+  let tr = "";
+  if (start > 0 && fin !== null) { const pr = Math.round((fin / start - 1) * 100); tr = '<div class="tr ' + (pr >= 0 ? "up" : "down") + '">' + (pr >= 0 ? "▲ +" : "▼ ") + pr + "% din 2023</div>"; }
+  else tr = '<div class="tr meta">fără 2023</div>';
+  const coduri = String(x.coduri_stare || "").split(",").filter(c => c && c !== "1048" && c !== "1112");
+  const risc = coduri.length ? '<div class="risc">⚠ ' + coduri.map(c => esc(STARI[c] || ("cod " + c))).join(" · ") + "</div>" : "";
+  const profit = x.profit_2024 ? lei(x.profit_2024) : (x.pierdere_2024 ? "−" + lei(x.pierdere_2024) : "—");
+  return '<div class="firma"><div><h3>' + esc(x.denumire) + '</h3><div class="meta">CUI ' + x.cui + " · " + esc(x.forma_juridica || "") + " · " + esc(x.localitate || "") + (x.judet && x.judet !== "București" ? ", " + esc(x.judet) : "") + " · din " + esc((x.data_inmatriculare || "").slice(0, 4)) + "</div></div>" + tr +
+    '<div class="nums"><div><span>Cifră afaceri 2023</span>' + mil(x.ca_2023) + '</div><div><span>2024</span>' + mil(x.ca_2024) + '</div><div><span>2025</span>' + mil(x.ca_2025) + '</div><div><span>Salariați 2024 → 2025</span>' + (x.sal_2024 ?? "—") + " → " + (x.sal_2025 ?? "—") + '</div><div><span>Profit net 2024</span>' + profit + "</div></div>" + risc + "</div>";
+}
+$("#f").addEventListener("submit", e => { e.preventDefault(); pagina = 1; cauta(); });
+$("#csv").addEventListener("click", () => { if (verifica()) location.href = "/api/cauta?" + parametri({ format: "csv" }); });
+$("#ex").addEventListener("click", e => {
+  const b = e.target.closest("button[data-q]"); if (!b) return;
+  const q = JSON.parse(b.dataset.q);
+  for (const k of ["judet", "loc", "smin", "smax", "cmin", "trend"]) $("#" + k).value = q[k] || "";
+  $("#sort").value = q.sort || "ca"; $("#caen").value = q.caen; $("#act").value = q.t; $("#risc").checked = true;
+  pagina = 1; cauta();
+});
+</script>
+</body>
+</html>
