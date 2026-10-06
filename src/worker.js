@@ -134,7 +134,7 @@ async function cauta(url, env) {
   const limita = csv ? MAX_CSV : PE_PAGINA;
   const offset = csv ? 0 : (pagina - 1) * PE_PAGINA;
 
-  const sql = `SELECT f.cui, f.denumire, f.forma_juridica, f.judet, f.localitate, f.data_inmatriculare, f.coduri_stare, f.web,
+  const sql = `SELECT f.cui, f.denumire, f.forma_juridica, f.persoana_fizica, f.judet, f.localitate, f.data_inmatriculare, f.coduri_stare, f.web,
       a.cifra_afaceri AS ca_2023, b.cifra_afaceri AS ca_2024, c.cifra_afaceri AS ca_2025,
       a.salariati AS sal_2023, b.salariati AS sal_2024, c.salariati AS sal_2025,
       b.profit_net AS profit_2024, b.pierdere_neta AS pierdere_2024
@@ -145,11 +145,18 @@ async function cauta(url, env) {
     csv ? Promise.resolve(null) : env.DB.prepare(`SELECT COUNT(*) AS n FROM (SELECT 1 ${DIN.replace(" INDEXED BY ix_mf_2024_ca", "")} LIMIT 5001)`).bind(...valori).first(),
   ]);
 
+  // PFA / II / IF = persoane fizice: identitatea (nume, CUI, site) nu pleacă din server; doar o referință pentru cerere de identificare
+  for (const r of rez.results) if (r.persoana_fizica) {
+    r.referinta = "P-" + ((r.cui ^ 0x5A5A5A) >>> 0).toString(36).toUpperCase();
+    r.denumire = r.forma_juridica + " · identitate ascunsă"; r.cui = null; r.web = null; r.mascat = 1;
+  }
+  for (const r of rez.results) delete r.persoana_fizica;
+
   if (csv) {
     const cap = ["CUI","Denumire","Forma","Judet","Localitate","Inmatriculare","CA_2023","CA_2024","CA_2025","Salariati_2024","Salariati_2025","Profit_net_2024","Stare"];
     const linii = [cap.join(";")];
     for (const r of rez.results) {
-      linii.push([r.cui, r.denumire, r.forma_juridica, r.judet, r.localitate, r.data_inmatriculare, r.ca_2023, r.ca_2024, r.ca_2025,
+      linii.push([r.cui ?? r.referinta, r.denumire, r.forma_juridica, r.judet, r.localitate, r.data_inmatriculare, r.ca_2023, r.ca_2024, r.ca_2025,
         r.sal_2024, r.sal_2025, r.profit_2024, r.coduri_stare]
         .map(v => { const s = v === null || v === undefined ? "" : String(v); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; })
         .join(";"));

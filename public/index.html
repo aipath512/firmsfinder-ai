@@ -109,6 +109,8 @@ footer a{color:var(--muted)}
 .nav a.m:hover{background:var(--card)}
 .nav a.m.on{background:var(--brand);color:#fff}
 
+.blur{filter:blur(6px);user-select:none}
+.ident{font-weight:600}
 </style>
 </head>
 <body>
@@ -257,7 +259,10 @@ function card(x) {
   const coduri = String(x.coduri_stare || "").split(",").filter(c => c && c !== "1048" && c !== "1112");
   const risc = coduri.length ? '<div class="risc">⚠ ' + coduri.map(c => esc(STARI[c] || ("cod " + c))).join(" · ") + "</div>" : "";
   const profit = x.profit_2024 ? lei(x.profit_2024) : (x.pierdere_2024 ? "−" + lei(x.pierdere_2024) : "—");
-  return '<div class="firma"><div><h3>' + esc(x.denumire) + '</h3><div class="meta">CUI ' + x.cui + " · " + esc(x.forma_juridica || "") + " · " + esc(x.localitate || "") + (x.judet && x.judet !== "București" ? ", " + esc(x.judet) : "") + " · din " + esc((x.data_inmatriculare || "").slice(0, 4)) + "</div></div>" + tr +
+  const cap = x.mascat
+    ? '<h3><span class="blur" aria-hidden="true">Xxxxxxx Xxxxxxxxx</span> <small>' + esc(x.forma_juridica) + '</small></h3><div class="meta">Persoană fizică autorizată · identitate protejată · ref. ' + esc(x.referinta) + ' · <a class="ident" href="mailto:contact@5thelement.ai?subject=' + encodeURIComponent("Identificare FirmsFinder " + x.referinta) + '&body=' + encodeURIComponent("Bună ziua,\n\nDoresc identificarea firmei cu referința " + x.referinta + " (" + x.forma_juridica + ", " + (x.localitate || "") + ").\n\nNume:\nFirma mea / CUI:\nScopul solicitării:\n") + '">Solicitați identificarea</a> · ' + esc(x.localitate || "") + (x.judet && x.judet !== "București" ? ", " + esc(x.judet) : "") + " · din " + esc((x.data_inmatriculare || "").slice(0, 4)) + "</div>"
+    : '<h3>' + esc(x.denumire) + '</h3><div class="meta">CUI ' + x.cui + " · " + esc(x.forma_juridica || "") + " · " + esc(x.localitate || "") + (x.judet && x.judet !== "București" ? ", " + esc(x.judet) : "") + " · din " + esc((x.data_inmatriculare || "").slice(0, 4)) + "</div>";
+  return '<div class="firma"><div>' + cap + "</div>" + tr +
     '<div class="nums"><div><span>Cifră afaceri 2023</span>' + mil(x.ca_2023) + '</div><div><span>2024</span>' + mil(x.ca_2024) + '</div><div><span>2025</span>' + mil(x.ca_2025) + '</div><div><span>Salariați 2024 → 2025</span>' + (x.sal_2024 ?? "—") + " → " + (x.sal_2025 ?? "—") + '</div><div><span>Profit net 2024</span>' + profit + "</div></div>" + risc + "</div>";
 }
 $("#f").addEventListener("submit", e => { e.preventDefault(); pagina = 1; cauta(); });
