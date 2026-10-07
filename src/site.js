@@ -267,13 +267,13 @@ export async function lot(env, n = 10, off = 0, cuBrave = true) {
   return { rezervate: ale.length, procesate: out.length, gasite: out.filter(x => x.gasit).length };
 }
 
-// cron: 20 rulări separate în paralel (fiecare are propriile 6 conexiuni simultane), câte 12 firme fiecare (~240/min) — 2026-10-07
+// cron: 30 rulări separate în paralel (fiecare are propriile 6 conexiuni simultane), câte 12 firme fiecare (~360/min) — 2026-10-07 (R=20 dădea ~238/min)
 // (N=20 pe lot a scăzut rata de găsire 9,7% → 6,3%: prea multe cereri așteaptă la coadă și expiră; păstrați N=12)
 export async function cron(env) {
   const tok = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='admin_token'").first();
   // o dată pe oră: ștergem cursorul → o trecere completă recuperează firmele rămase în urmă (rezervări expirate)
   if (new Date().getUTCMinutes() === 0) await env.DB.prepare("DELETE FROM config WHERE cheie='cursor_ca'").run();
-  const N = 12, R = 20;
+  const N = 12, R = 30;
   await Promise.all([...Array(R).keys()].map(i =>
     fetch(`https://1clic-ia.eu/admin/site?lot=${N}&off=${i * N}&brave=${i === 0 ? 1 : 0}&k=${tok.valoare}`).then(r => r.text()).catch(() => null)));
 }
