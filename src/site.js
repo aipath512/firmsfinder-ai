@@ -248,9 +248,15 @@ export async function lot(env, n = 10, off = 0, cuBrave = true) {
     retry = await env.DB.prepare(`SELECT cui FROM firme_site WHERE verificat IN (0, 2)
       AND (incercari LIKE '%fără BRAVE_KEY%' OR incercari LIKE '%amânată (lot)%' OR incercari LIKE '%plafon zilnic%' OR incercari LIKE '%căutare → brave %') LIMIT 1`).first();
   }
-  const r = await env.DB.prepare(`SELECT m.cui, o.denumire FROM mf_bilant_2024 m INDEXED BY ix_mf_2024_ca CROSS JOIN onrc_firme o ON o.cui = m.cui
-    WHERE m.cifra_afaceri > 0 AND o.top = 1 AND NOT EXISTS (SELECT 1 FROM firme_site s WHERE s.cui = m.cui)
-    ORDER BY m.cifra_afaceri DESC LIMIT ? OFFSET ?`).bind(n, off).all();
+  // cursor (2026-10-07): pornim de la cifra de afaceri unde a rămas lotul off=0, în loc să trecem de fiecare dată
+  // peste toate firmele deja procesate (~1.000 rânduri citite pe lot în loc de 100.000+). Cursorul se resetează din oră în oră (cron).
+  const crs = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='cursor_ca'").first();
+  const cursor = crs && Number(crs.valoare) > 0 ? Number(crs.valoare) : null;
+  const r = await env.DB.prepare(`SELECT m.cui, o.denumire, m.cifra_afaceri FROM mf_bilant_2024 m INDEXED BY ix_mf_2024_ca CROSS JOIN onrc_firme o ON o.cui = m.cui
+    WHERE m.cifra_afaceri > 0${cursor ? " AND m.cifra_afaceri <= ?" : ""} AND o.top = 1 AND NOT EXISTS (SELECT 1 FROM firme_site s WHERE s.cui = m.cui)
+    ORDER BY m.cifra_afaceri DESC LIMIT ? OFFSET ?`).bind(...(cursor ? [cursor, n, off] : [n, off])).all();
+  if (off === 0 && r.results.length)
+    await env.DB.prepare("INSERT OR REPLACE INTO config (cheie, valoare) VALUES ('cursor_ca', ?)").bind(String(r.results[0].cifra_afaceri)).run();
   const rez = r.results.length ? await env.DB.batch(r.results.map(x =>
     env.DB.prepare("INSERT OR IGNORE INTO firme_site (cui, denumire, verificat, metoda, data) VALUES (?, ?, -1, 'in-lucru', datetime('now'))").bind(x.cui, x.denumire))) : [];
   const ale = r.results.filter((x, i) => rez[i]?.meta?.changes === 1).map(x => x.cui);
@@ -261,11 +267,13 @@ export async function lot(env, n = 10, off = 0, cuBrave = true) {
   return { rezervate: ale.length, procesate: out.length, gasite: out.filter(x => x.gasit).length };
 }
 
-// cron: 13 rulări separate în paralel (fiecare are propriile 6 conexiuni simultane), câte 12 firme fiecare (~156/min) — 2026-10-07
+// cron: 20 rulări separate în paralel (fiecare are propriile 6 conexiuni simultane), câte 12 firme fiecare (~240/min) — 2026-10-07
 // (N=20 pe lot a scăzut rata de găsire 9,7% → 6,3%: prea multe cereri așteaptă la coadă și expiră; păstrați N=12)
 export async function cron(env) {
   const tok = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='admin_token'").first();
-  const N = 12, R = 13;
+  // o dată pe oră: ștergem cursorul → o trecere completă recuperează firmele rămase în urmă (rezervări expirate)
+  if (new Date().getUTCMinutes() === 0) await env.DB.prepare("DELETE FROM config WHERE cheie='cursor_ca'").run();
+  const N = 12, R = 20;
   await Promise.all([...Array(R).keys()].map(i =>
     fetch(`https://1clic-ia.eu/admin/site?lot=${N}&off=${i * N}&brave=${i === 0 ? 1 : 0}&k=${tok.valoare}`).then(r => r.text()).catch(() => null)));
 }
