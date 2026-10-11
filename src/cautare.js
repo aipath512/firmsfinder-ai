@@ -98,6 +98,22 @@ async function verificaTermeni(r, f, b, cate) {
   return null;
 }
 
+// telefon/domeniu din fișele locale Google (hartă, panou) — pentru firmele fără site
+function locale(items, den) {
+  const j = jeton(den), out = { tel: [], dom: [] };
+  const vezi = (x) => {
+    if (!x || typeof x !== "object") return;
+    const nume = fara(String(x.title || x.name || "")).toLowerCase();
+    if (j && nume.includes(j)) {
+      if (x.phone) out.tel.push(String(x.phone).replace(/[^\d+]/g, ""));
+      if (x.domain && !DIRECTOARE.test(x.domain) && !EXTRA.test(x.domain)) out.dom.push("https://" + x.domain);
+    }
+    if (Array.isArray(x.items)) x.items.forEach(vezi);
+  };
+  for (const it of items || []) if (it.type && it.type !== "organic" && it.type !== "paid") vezi(it);
+  return { tel: [...new Set(out.tel)].slice(0, 3), dom: [...new Set(out.dom)].slice(0, 1) };
+}
+
 function domenii(items) {
   const vazute = new Set(), out = [];
   for (const it of items || []) {
@@ -117,7 +133,8 @@ async function proceseazaRezultat(env, id, cui) {
   if (!t || t.status_code !== 20000) return env.DB.prepare("UPDATE cautare_coada SET stare = 3 WHERE cui = ?").bind(cui).run();
   const f = await env.DB.prepare("SELECT cui, denumire, localitate, judet FROM onrc_firme WHERE cui = ? LIMIT 1").bind(cui).first();
   if (!f) return env.DB.prepare("UPDATE cautare_coada SET stare = 3 WHERE cui = ?").bind(cui).run();
-  const urls = domenii(t.result?.[0]?.items);
+  const loc = locale(t.result?.[0]?.items, f.denumire);
+  const urls = [...new Set([...loc.dom, ...domenii(t.result?.[0]?.items)])].slice(0, 3);
   const b = { n: 0 };
   const incercari = ["căutare DFS → " + (urls.length ? urls.length + " rezultate" : "niciun rezultat util")];
   let gasit = null;
@@ -138,7 +155,10 @@ async function proceseazaRezultat(env, id, cui) {
       gasit = { ...r, domeniu: d, nivel: v === "nume" ? 2 : 1, metoda: "dfs+" + v };
     } else incercari.push("căutare " + d + " → nu e firma");
   }
+  if (!gasit && loc.tel.length) incercari.push("contact local Google: " + loc.tel.join(", "));
   await salveaza(env, f, gasit, incercari, b);
+  if (!gasit && loc.tel.length)
+    await env.DB.prepare("UPDATE firme_site SET telefoane = ? WHERE cui = ? AND (telefoane IS NULL OR telefoane = '')").bind(loc.tel.join(", "), f.cui).run();
   await env.DB.prepare("UPDATE cautare_coada SET stare = 2 WHERE cui = ?").bind(cui).run();
   return !!gasit;
 }
