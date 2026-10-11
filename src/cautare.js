@@ -1,4 +1,4 @@
-// FirmsFinder AI — cautare.js v1.0 · 2026-10-11
+// FirmsFinder AI — cautare.js v1.1 · 2026-10-11
 // Completează site-ul lipsă per CUI: coadă (cele mai mari firme întâi) → căutare web DataForSEO
 // → validare prin CUI/denumire afișate pe site → scriere în firme_site (aceeași tabelă ca FirmsFinderBot).
 // Rulează din cron-ul existent. Nu cere nimic local.
@@ -7,7 +7,7 @@ import { ia, verificaSite, salveaza, DIRECTOARE, PARCAT, textDin, fara } from ".
 const DFS = "https://api.dataforseo.com/v3/serp/google/organic";
 const UMPLE = 5000;      // câte firme intră în coadă la o rulare
 const TRIMITE = 100;     // taskuri trimise la DataForSEO per rulare (max 100 per request)
-const COLECTEAZA = 20;   // rezultate procesate per rulare
+const COLECTEAZA = 4;    // rezultate procesate per rulare (limită de cereri pe invocare)
 const MAX_ZI_IMPLICIT = 5000; // plafon taskuri/zi (≈ 3 USD/zi la 0,0006 USD/task); se schimbă din config 'dfs_max_zi'
 
 const cfg = async (env, k) => (await env.DB.prepare("SELECT valoare FROM config WHERE cheie=?").bind(k).first())?.valoare ?? null;
@@ -32,6 +32,8 @@ async function pregateste(env) {
 // stare: 0 = de trimis · 1 = trimis la DataForSEO · 2 = gata · 3 = eroare
 async function umple(env) {
   if ((await cfg(env, "coada_gata")) === "1") return;
+  const asteapta = await env.DB.prepare("SELECT COUNT(*) AS n FROM cautare_coada WHERE stare = 0").first();
+  if (asteapta && asteapta.n > 2000) return;
   const cur = Number(await cfg(env, "coada_cursor")) || 9e15;
   const r = await env.DB.prepare(`SELECT m.cui, m.cifra_afaceri AS ca
     FROM mf_bilant_2024 m INDEXED BY ix_mf_2024_ca CROSS JOIN firme_site s ON s.cui = m.cui
@@ -60,8 +62,11 @@ async function trimite(env) {
     keyword: '"' + x.denumire.replace(/"/g, "") + '" ' + (x.localitate || "").replace(/^(Municipiul|Oraş|Oras|Comuna)\s+/i, ""),
     location_code: 2642, language_code: "ro", depth: 10, tag: String(x.cui)
   }));
-  const j = await dfs(env, "/task_post", taskuri);
+  let j;
+  try { j = await dfs(env, "/task_post", taskuri); }
+  catch (e) { return setCfg(env, "dfs_eroare", "exceptie: " + String(e).slice(0, 250)); }
   const ok = (j.tasks || []).filter((t) => t.status_code === 20100 && t.data?.tag);
+  if (!ok.length) await setCfg(env, "dfs_eroare", JSON.stringify({ sc: j.status_code, sm: j.status_message, t: (j.tasks || []).slice(0, 2).map((t) => t.status_code + " " + t.status_message) }).slice(0, 400));
   for (let i = 0; i < ok.length; i += 500)
     await env.DB.batch(ok.slice(i, i + 500).map((t) =>
       env.DB.prepare("UPDATE cautare_coada SET stare = 1, task_id = ?, data = datetime('now') WHERE cui = ?").bind(t.id, Number(t.data.tag))));
@@ -117,18 +122,27 @@ async function colecteaza(env) {
   }));
 }
 
-export async function cronCautare(env) {
+async function ruleaza(env) {
   if (!env.DFS_AUTH) return;
   await pregateste(env);
-  await umple(env).catch(() => null);
-  await trimite(env).catch(() => null);
-  await colecteaza(env).catch(() => null);
+  await umple(env).catch((e) => setCfg(env, "dfs_eroare", "umple: " + String(e).slice(0, 250)));
+  await trimite(env).catch((e) => setCfg(env, "dfs_eroare", "trimite: " + String(e).slice(0, 250)));
+  await colecteaza(env).catch((e) => setCfg(env, "dfs_eroare", "colecteaza: " + String(e).slice(0, 250)));
+}
+
+// Din cron: lansează căutarea într-o invocare separată (are propria limită de cereri).
+export async function cronCautare(env) {
+  if (!env.DFS_AUTH) return;
+  const tok = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='admin_token'").first();
+  if (!tok) return;
+  await fetch("https://1clic-ia.eu/admin/cautare?run=1&k=" + tok.valoare).catch(() => null);
 }
 
 // /admin/cautare?stat=1&k=TOKEN  → stare coadă, buget, rezultate
 export async function cautareAdmin(url, env) {
   const tok = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='admin_token'").first();
   if (!tok || url.searchParams.get("k") !== tok.valoare) return new Response("Acces interzis.", { status: 403 });
+  if (url.searchParams.get("run") === "1") { await ruleaza(env); return Response.json({ ok: true }); }
   await pregateste(env);
   const coada = await env.DB.prepare("SELECT stare, COUNT(*) n FROM cautare_coada GROUP BY stare").all();
   const gasite = await env.DB.prepare("SELECT verificat, COUNT(*) n FROM firme_site WHERE metoda LIKE 'dfs+%' GROUP BY verificat").all();
@@ -139,6 +153,7 @@ export async function cautareAdmin(url, env) {
     dfs_azi: await cfg(env, "dfs_zi"),
     plafon_zi: Number(await cfg(env, "dfs_max_zi")) || MAX_ZI_IMPLICIT,
     coada_completa: (await cfg(env, "coada_gata")) === "1",
-    dfs_configurat: !!env.DFS_AUTH
+    dfs_configurat: !!env.DFS_AUTH,
+    ultima_eroare_dfs: await cfg(env, "dfs_eroare")
   });
 }
