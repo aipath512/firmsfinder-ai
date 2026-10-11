@@ -55,8 +55,15 @@ async function trimite(env) {
   const max = Number(await cfg(env, "dfs_max_zi")) || MAX_ZI_IMPLICIT;
   const loc = Math.min(TRIMITE, max - folosite);
   if (loc <= 0) return;
-  const r = await env.DB.prepare(`SELECT q.cui, o.denumire, o.localitate FROM cautare_coada q
-    JOIN onrc_firme o ON o.cui = q.cui WHERE q.stare = 0 AND o.top = 1 GROUP BY q.cui ORDER BY q.ca DESC LIMIT ?`).bind(loc).all();
+  const q = await env.DB.prepare("SELECT cui FROM cautare_coada WHERE stare = 0 ORDER BY ca DESC LIMIT ?").bind(loc).all();
+  if (!q.results.length) return;
+  const rez = await env.DB.batch(q.results.map((x) =>
+    env.DB.prepare("SELECT cui, denumire, localitate, top FROM onrc_firme WHERE cui = ? LIMIT 1").bind(x.cui)));
+  const r = { results: rez.map((z) => z.results[0]).filter((x) => x && x.top === 1) };
+  const buni = new Set(r.results.map((x) => x.cui));
+  const rai = q.results.filter((x) => !buni.has(x.cui));
+  for (let i = 0; i < rai.length; i += 500)
+    await env.DB.batch(rai.slice(i, i + 500).map((x) => env.DB.prepare("UPDATE cautare_coada SET stare = 3 WHERE cui = ?").bind(x.cui)));
   if (!r.results.length) return;
   const taskuri = r.results.map((x) => ({
     keyword: '"' + x.denumire.replace(/"/g, "") + '" ' + (x.localitate || "").replace(/^(Municipiul|Oraş|Oras|Comuna)\s+/i, ""),
