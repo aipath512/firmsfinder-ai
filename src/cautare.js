@@ -80,13 +80,22 @@ async function trimite(env) {
   await setCfg(env, "dfs_zi", azi + ":" + (folosite + ok.length));
 }
 
+// portaluri/știri/directoare care apar la căutarea după denumire dar nu sunt site-ul firmei
+const EXTRA = /zf\.ro|northdata|profit\.ro|seenews|economedia|bestjobs|ejobs|romjob|edemunca|publi24|undelucram|tradeatlas|jurnaluldeafaceri|transilvaniabusiness|emis\.com|wall-street|mediafax|hotnews|digi24|ziare|stirileprotv|bursa\.ro|business-review|capital\.ro|financiarul|revistabiz|forbes|glassdoor|indeed|jooble|lensa|trovit|wikimedia|wikidata|crunchbase|zoominfo|rocketreach|apollo\.io|dnb\.|kompass|europages|globaldatabase|company-?info|firma\.info|listafirme|mfinante|lege5|rnpm|pagini-?aur|infocamere|opencorporates|bizi\.|ceginformacio|ahkrumaenien|sw-umwelttechnik|gov\.ro|ro\.wikipedia|\.pdf$/i;
+
+const LEGAL = /\b(s\.?r\.?l\.?|s\.?a\.?|s\.?c\.?|romania|româ?nia|international|group|holding|company|ltd|gmbh|d\.?e\.?|&)\b/gi;
+function jeton(den) {
+  const t = fara(String(den || "")).toLowerCase().replace(LEGAL, " ").replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((x) => x.length >= 4);
+  return t[0] || null;
+}
+
 function domenii(items) {
   const vazute = new Set(), out = [];
   for (const it of items || []) {
     if (it.type !== "organic" || !it.url) continue;
     try {
       const h = new URL(it.url).hostname.replace(/^www\./, "");
-      if (DIRECTOARE.test(h) || vazute.has(h)) continue;
+      if (DIRECTOARE.test(h) || EXTRA.test(h) || EXTRA.test(it.url) || vazute.has(h)) continue;
       vazute.add(h); out.push(it.url);
     } catch {}
   }
@@ -109,7 +118,11 @@ async function proceseazaRezultat(env, id, cui) {
     const d = new URL(u).hostname.replace(/^www\./, "");
     if (!r) { incercari.push("căutare " + d + " → nimic"); continue; }
     if (PARCAT.test(fara(textDin(r.html)))) { incercari.push("căutare " + d + " → domeniu parcat"); continue; }
-    const v = await verificaSite(r, f, b, 3);
+    let v = await verificaSite(r, f, b, 3);
+    if (!v) {
+      const j = jeton(f.denumire), lab = d.split(".")[0];
+      if (j && (lab === j || lab.startsWith(j) || j.startsWith(lab) && lab.length >= 4) && fara(textDin(r.html)).toLowerCase().includes(j)) v = "nume";
+    }
     if (v) {
       incercari.push("căutare " + d + " → GĂSIT (" + v + ")");
       gasit = { ...r, domeniu: d, nivel: v === "nume" ? 2 : 1, metoda: "dfs+" + v };
