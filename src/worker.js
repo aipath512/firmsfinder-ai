@@ -18,11 +18,12 @@ const JUDETE = ["Alba","Arad","Argeș","Bacău","Bihor","Bistrița-Năsăud","Bo
 // Worker: răspunde la /api/* și /robots.txt; pagina (public/index.html) e servită automat ca „asset”.
 import { legal } from "./legal.js";
 import { site, cron } from "./site.js";
+import { cronCautare, cautareAdmin } from "./cautare.js";
 
 export default {
   // cron: 6 rulări × 12 firme la fiecare minut (~100.000/zi); Brave plafonat separat la 30/zi
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(cron(env).catch(() => null));
+    ctx.waitUntil(Promise.all([cron(env), cronCautare(env)]).catch(() => null));
   },
 
   async fetch(request, env, ctx) {
@@ -37,6 +38,7 @@ export default {
       if (url.pathname === "/api/oferta") return await ofertaStare(env);
       if (url.pathname === "/legal" || url.pathname.startsWith("/legal/")) return await legal(request, env, url);
       if (url.pathname === "/admin/site") return await site(url, env, ctx);
+      if (url.pathname === "/admin/cautare") return await cautareAdmin(url, env);
       if (url.pathname === "/termeni.html") return Response.redirect(url.origin + "/legal/termeni", 301);
       if (url.pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /api/\n", { headers: { "content-type": "text/plain" } });
       if (url.pathname.startsWith("/api/")) return json({ eroare: "Adresă necunoscută." }, 404);

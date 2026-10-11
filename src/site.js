@@ -296,3 +296,5 @@ export async function site(url, env, ctx) {
   const rez = await proceseaza(cui, env);
   return Response.json(rez, { status: rez.eroare ? 404 : 200 });
 }
+
+export { ia, verificaSite, salveaza, DIRECTOARE, PARCAT, textDin, fara };
