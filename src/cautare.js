@@ -2,12 +2,12 @@
 // Completează site-ul lipsă per CUI: coadă (cele mai mari firme întâi) → căutare web DataForSEO
 // → validare prin CUI/denumire afișate pe site → scriere în firme_site (aceeași tabelă ca FirmsFinderBot).
 // Rulează din cron-ul existent. Nu cere nimic local.
-import { ia, verificaSite, salveaza, DIRECTOARE, PARCAT, textDin, fara } from "./site.js";
+import { verifica, ia, verificaSite, salveaza, DIRECTOARE, PARCAT, textDin, fara } from "./site.js";
 
 const DFS = "https://api.dataforseo.com/v3/serp/google/organic";
 const UMPLE = 5000;      // câte firme intră în coadă la o rulare
 const TRIMITE = 100;     // taskuri trimise la DataForSEO per rulare (max 100 per request)
-const COLECTEAZA = 4;    // rezultate procesate per rulare (limită de cereri pe invocare)
+const COLECTEAZA = 1;    // rezultate procesate per rulare (limită de cereri pe invocare)
 const MAX_ZI_IMPLICIT = 5000; // plafon taskuri/zi (≈ 3 USD/zi la 0,0006 USD/task); se schimbă din config 'dfs_max_zi'
 
 const cfg = async (env, k) => (await env.DB.prepare("SELECT valoare FROM config WHERE cheie=?").bind(k).first())?.valoare ?? null;
@@ -89,6 +89,15 @@ function jeton(den) {
   return t[0] || null;
 }
 
+// citește paginile legale clasice (Termeni, Contact, GDPR...) chiar dacă meniul e încărcat cu JS
+const CAI = ["/termeni-si-conditii", "/termeni-si-conditii/", "/termeni-conditii", "/termeni", "/contact", "/despre-noi", "/politica-de-confidentialitate", "/gdpr", "/impressum"];
+async function verificaTermeni(r, f, b, cate) {
+  let o; try { o = new URL(r.url).origin; } catch { return null; }
+  const pg = await Promise.all(CAI.slice(0, cate).map((c) => ia(o + c, b, 4000).catch(() => null)));
+  for (const x of pg) if (x && verifica(x.html, f.cui, f.denumire) === "cui") return "cui-termeni";
+  return null;
+}
+
 function domenii(items) {
   const vazute = new Set(), out = [];
   for (const it of items || []) {
@@ -119,6 +128,7 @@ async function proceseazaRezultat(env, id, cui) {
     if (!r) { incercari.push("căutare " + d + " → nimic"); continue; }
     if (PARCAT.test(fara(textDin(r.html)))) { incercari.push("căutare " + d + " → domeniu parcat"); continue; }
     let v = await verificaSite(r, f, b, 3);
+    if (!v) v = await verificaTermeni(r, f, b, 6);
     if (!v) {
       const j = jeton(f.denumire), lab = d.split(".")[0];
       if (j && (lab === j || lab.startsWith(j) || j.startsWith(lab) && lab.length >= 4) && fara(textDin(r.html)).toLowerCase().includes(j)) v = "nume";
@@ -133,9 +143,9 @@ async function proceseazaRezultat(env, id, cui) {
   return !!gasit;
 }
 
-async function colecteaza(env) {
+async function colecteaza(env, k = 0, n = 1) {
   const j = await dfs(env, "/tasks_ready");
-  const gata = (j.tasks?.[0]?.result || []).filter((x) => x.tag && /^\d+$/.test(x.tag)).slice(0, COLECTEAZA);
+  const gata = (j.tasks?.[0]?.result || []).filter((x) => x.tag && /^\d+$/.test(x.tag)).filter((_, i) => i % n === k).slice(0, COLECTEAZA);
   await Promise.all(gata.map(async (x) => {
     const q = await env.DB.prepare("SELECT cui FROM cautare_coada WHERE cui = ? AND stare = 1").bind(Number(x.tag)).first();
     if (q) await proceseazaRezultat(env, x.id, q.cui).catch(() => null);
@@ -147,7 +157,7 @@ async function ruleaza(env) {
   await pregateste(env);
   await umple(env).catch((e) => setCfg(env, "dfs_eroare", "umple: " + String(e).slice(0, 250)));
   await trimite(env).catch((e) => setCfg(env, "dfs_eroare", "trimite: " + String(e).slice(0, 250)));
-  await colecteaza(env).catch((e) => setCfg(env, "dfs_eroare", "colecteaza: " + String(e).slice(0, 250)));
+  await colecteaza(env, 0, 3).catch((e) => setCfg(env, "dfs_eroare", "colecteaza: " + String(e).slice(0, 250)));
 }
 
 // Din cron: lansează căutarea într-o invocare separată (are propria limită de cereri).
@@ -155,13 +165,16 @@ export async function cronCautare(env) {
   if (!env.DFS_AUTH) return;
   const tok = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='admin_token'").first();
   if (!tok) return;
-  await fetch("https://1clic-ia.eu/admin/cautare?run=1&k=" + tok.valoare).catch(() => null);
+  const u = "https://1clic-ia.eu/admin/cautare?k=" + tok.valoare;
+  await Promise.all([fetch(u + "&run=1"), fetch(u + "&col=1"), fetch(u + "&col=2")].map((p) => p.catch(() => null)));
 }
 
 // /admin/cautare?stat=1&k=TOKEN  → stare coadă, buget, rezultate
 export async function cautareAdmin(url, env) {
   const tok = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='admin_token'").first();
   if (!tok || url.searchParams.get("k") !== tok.valoare) return new Response("Acces interzis.", { status: 403 });
+  const col = Number(url.searchParams.get("col"));
+  if (col === 1 || col === 2) { await colecteaza(env, col, 3).catch((e) => setCfg(env, "dfs_eroare", "colecteaza" + col + ": " + String(e).slice(0, 200))); return Response.json({ ok: true }); }
   if (url.searchParams.get("run") === "1") { await ruleaza(env); return Response.json({ ok: true }); }
   await pregateste(env);
   const coada = await env.DB.prepare("SELECT stare, COUNT(*) n FROM cautare_coada GROUP BY stare").all();
