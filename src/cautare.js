@@ -34,12 +34,13 @@ async function umple(env) {
   if ((await cfg(env, "coada_gata")) === "1") return;
   const asteapta = await env.DB.prepare("SELECT COUNT(*) AS n FROM cautare_coada WHERE stare = 0").first();
   if (asteapta && asteapta.n > 2000) return;
-  const cur = Number(await cfg(env, "coada_cursor")) || 9e15;
+  const cur = Number(await cfg(env, "coada_cursor")) || Number(await cfg(env, "coada_max")) || 9e15;
+  const min = Number(await cfg(env, "coada_min")) || 0;
   const r = await env.DB.prepare(`SELECT m.cui, m.cifra_afaceri AS ca
     FROM mf_bilant_2024 m INDEXED BY ix_mf_2024_ca CROSS JOIN firme_site s ON s.cui = m.cui
-    WHERE m.cifra_afaceri > 0 AND m.cifra_afaceri <= ? AND s.verificat = 0 AND s.metoda = 'negasit'
+    WHERE m.cifra_afaceri > ? AND m.cifra_afaceri <= ? AND s.verificat = 0 AND s.metoda = 'negasit'
       AND NOT EXISTS (SELECT 1 FROM cautare_coada q WHERE q.cui = m.cui)
-    ORDER BY m.cifra_afaceri DESC LIMIT ?`).bind(cur, UMPLE).all();
+    ORDER BY m.cifra_afaceri DESC LIMIT ?`).bind(min, cur, UMPLE).all();
   if (!r.results.length) return setCfg(env, "coada_gata", "1");
   for (let i = 0; i < r.results.length; i += 500)
     await env.DB.batch(r.results.slice(i, i + 500).map((x) =>
