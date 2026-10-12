@@ -20,6 +20,7 @@ import { legal } from "./legal.js";
 import { site, cron } from "./site.js";
 import { cronCautare, cautareAdmin } from "./cautare.js";
 import { mapsTest } from "./maps.js";
+import { exportCsv } from "./export.js";
 
 export default {
   // cron: doar căutarea DataForSEO/Brave. Bucla `cron(env)` (lot de 12 firme × 40 la fiecare minut)
@@ -42,6 +43,7 @@ export default {
       if (url.pathname === "/legal" || url.pathname.startsWith("/legal/")) return await legal(request, env, url);
       if (url.pathname === "/admin/site") return await site(url, env, ctx);
       if (url.pathname === "/admin/cautare") return await cautareAdmin(url, env);
+      if (url.pathname === "/admin/export") return await exportCsv(url, env);
       if (url.pathname === "/termeni.html") return Response.redirect(url.origin + "/legal/termeni", 301);
       if (url.pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /api/\n", { headers: { "content-type": "text/plain" } });
       if (url.pathname.startsWith("/api/")) return json({ eroare: "Adresă necunoscută." }, 404);
