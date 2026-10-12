@@ -19,13 +19,14 @@ const JUDETE = ["Alba","Arad","Argeș","Bacău","Bihor","Bistrița-Năsăud","Bo
 import { legal } from "./legal.js";
 import { site, cron } from "./site.js";
 import { cronCautare, cautareAdmin } from "./cautare.js";
+import { mapsTest } from "./maps.js";
 
 export default {
   // cron: doar căutarea DataForSEO/Brave. Bucla `cron(env)` (lot de 12 firme × 40 la fiecare minut)
   // e oprită din 12 oct 2026: toate firmele cu bilanț 2024 și CA > 0 au fost deja încercate,
   // iar fiecare rulare scana inutil tot indexul. Reactivare: Promise.all([cron(env), cronCautare(env)])
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(cronCautare(env).catch(() => null));
+    ctx.waitUntil(Promise.all([cronCautare(env), mapsTest(env)].map((p) => p.catch(() => null))));
   },
 
   async fetch(request, env, ctx) {

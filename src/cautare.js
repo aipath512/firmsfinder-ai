@@ -112,7 +112,7 @@ async function trimite(env) {
 const EXTRA = /zf\.ro|northdata|profit\.ro|seenews|economedia|bestjobs|ejobs|romjob|edemunca|publi24|undelucram|tradeatlas|jurnaluldeafaceri|transilvaniabusiness|emis\.com|wall-street|mediafax|hotnews|digi24|ziare|stirileprotv|bursa\.ro|business-review|capital\.ro|financiarul|revistabiz|forbes|glassdoor|indeed|jooble|lensa|trovit|wikimedia|wikidata|crunchbase|zoominfo|rocketreach|apollo\.io|dnb\.|kompass|europages|globaldatabase|company-?info|firma\.info|listafirme|mfinante|lege5|rnpm|pagini-?aur|infocamere|opencorporates|bizi\.|ceginformacio|ahkrumaenien|sw-umwelttechnik|gov\.ro|ro\.wikipedia|\.pdf$/i;
 
 const LEGAL = /\b(s\.?r\.?l\.?|s\.?a\.?|s\.?c\.?|romania|româ?nia|international|group|holding|company|ltd|gmbh|d\.?e\.?|&)\b/gi;
-function jeton(den) {
+export function jeton(den) {
   const t = fara(String(den || "")).toLowerCase().replace(LEGAL, " ").replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((x) => x.length >= 4);
   return t[0] || null;
 }
