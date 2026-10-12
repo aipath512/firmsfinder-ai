@@ -1,0 +1,32 @@
+name: site-ghicit
+
+# Rulează manual: Actions -> site-ghicit -> Run workflow.
+# Procesează firmele neîncercate din D1 și scrie rezultatul în firme_site.
+# Reia singur de unde a rămas (cursor în D1, cheia ghicit_py_cursor).
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_minutes:
+        description: "Cât timp rulează, în minute (maxim 330)"
+        default: "330"
+      chunk:
+        description: "Firme per lot"
+        default: "3000"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install aiohttp
+      - run: python scripts/site_ghicit.py
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          MAX_MINUTES: ${{ inputs.max_minutes }}
+          CHUNK: ${{ inputs.chunk }}
