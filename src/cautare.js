@@ -7,7 +7,7 @@ import { verifica, ia, verificaSite, salveaza, DIRECTOARE, PARCAT, textDin, fara
 const DFS = "https://api.dataforseo.com/v3/serp/google/organic";
 const UMPLE = 5000;      // câte firme intră în coadă la o rulare
 const TRIMITE = 100;     // taskuri trimise la DataForSEO per rulare (max 100 per request)
-const COLECTEAZA = 1;    // rezultate procesate per rulare (limită de cereri pe invocare)
+const COLECTEAZA = 3;    // rezultate procesate per rulare × 3 rulări/minut ≈ 13.000/zi (> plafonul de 5.000 trimise/zi)
 const MAX_ZI_IMPLICIT = 5000; // plafon taskuri/zi (≈ 3 USD/zi la 0,0006 USD/task); se schimbă din config 'dfs_max_zi'
 
 const cfg = async (env, k) => (await env.DB.prepare("SELECT valoare FROM config WHERE cheie=?").bind(k).first())?.valoare ?? null;
@@ -49,7 +49,7 @@ async function umple(env) {
 }
 
 async function trimite(env) {
-  await env.DB.prepare("UPDATE cautare_coada SET stare = 0 WHERE stare = 1 AND data < datetime('now','-3 hours')").run();
+  await env.DB.prepare("UPDATE cautare_coada SET stare = 0 WHERE stare = 1 AND data < datetime('now','-2 days')").run();
   const azi = new Date().toISOString().slice(0, 10);
   const [zi, n0] = ((await cfg(env, "dfs_zi")) || "").split(":");
   const folosite = zi === azi ? Number(n0) : 0;
