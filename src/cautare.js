@@ -7,7 +7,8 @@ import { verifica, ia, verificaSite, salveaza, DIRECTOARE, PARCAT, textDin, fara
 const DFS = "https://api.dataforseo.com/v3/serp/google/organic";
 const UMPLE = 5000;      // câte firme intră în coadă la o rulare
 const TRIMITE = 100;     // taskuri trimise la DataForSEO per rulare (max 100 per request)
-const COLECTEAZA = 3;    // rezultate procesate per rulare × 3 rulări/minut ≈ 13.000/zi (> plafonul de 5.000 trimise/zi)
+const COLECTEAZA = 1;    // rezultate procesate per invocare (mai multe depășesc limita worker-ului)
+const COLECTORI = 9;     // invocări paralele pe minut: 9 × 1 ≈ 13.000/zi (> plafonul de 5.000 trimise/zi)
 const MAX_ZI_IMPLICIT = 5000; // plafon taskuri/zi (≈ 3 USD/zi la 0,0006 USD/task); se schimbă din config 'dfs_max_zi'
 
 const cfg = async (env, k) => (await env.DB.prepare("SELECT valoare FROM config WHERE cheie=?").bind(k).first())?.valoare ?? null;
@@ -178,7 +179,7 @@ async function ruleaza(env) {
   await pregateste(env);
   await umple(env).catch((e) => setCfg(env, "dfs_eroare", "umple: " + String(e).slice(0, 250)));
   await trimite(env).catch((e) => setCfg(env, "dfs_eroare", "trimite: " + String(e).slice(0, 250)));
-  await colecteaza(env, 0, 3).catch((e) => setCfg(env, "dfs_eroare", "colecteaza: " + String(e).slice(0, 250)));
+  await colecteaza(env, 0, COLECTORI).catch((e) => setCfg(env, "dfs_eroare", "colecteaza: " + String(e).slice(0, 250)));
 }
 
 // Din cron: lansează căutarea într-o invocare separată (are propria limită de cereri).
@@ -187,7 +188,7 @@ export async function cronCautare(env) {
   const tok = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='admin_token'").first();
   if (!tok) return;
   const u = "https://1clic-ia.eu/admin/cautare?k=" + tok.valoare;
-  await Promise.all([fetch(u + "&run=1"), fetch(u + "&col=1"), fetch(u + "&col=2")].map((p) => p.catch(() => null)));
+  await Promise.all([fetch(u + "&run=1"), ...Array.from({ length: COLECTORI - 1 }, (_, i) => fetch(u + "&col=" + (i + 1)))].map((p) => p.catch(() => null)));
 }
 
 // /admin/cautare?stat=1&k=TOKEN  → stare coadă, buget, rezultate
@@ -195,7 +196,7 @@ export async function cautareAdmin(url, env) {
   const tok = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='admin_token'").first();
   if (!tok || url.searchParams.get("k") !== tok.valoare) return new Response("Acces interzis.", { status: 403 });
   const col = Number(url.searchParams.get("col"));
-  if (col === 1 || col === 2) { await colecteaza(env, col, 3).catch((e) => setCfg(env, "dfs_eroare", "colecteaza" + col + ": " + String(e).slice(0, 200))); return Response.json({ ok: true }); }
+  if (Number.isInteger(col) && col >= 1 && col < COLECTORI) { await colecteaza(env, col, COLECTORI).catch((e) => setCfg(env, "dfs_eroare", "colecteaza" + col + ": " + String(e).slice(0, 200))); return Response.json({ ok: true }); }
   if (url.searchParams.get("run") === "1") { await ruleaza(env); return Response.json({ ok: true }); }
   await pregateste(env);
   const coada = await env.DB.prepare("SELECT stare, COUNT(*) n FROM cautare_coada GROUP BY stare").all();
