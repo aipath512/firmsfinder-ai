@@ -23,6 +23,27 @@ async function dfs(env, cale, corp) {
   return r.json();
 }
 
+// Soldul contului DataForSEO (endpoint gratuit /v3/appendix/user_data), cu cheia deja din worker.
+// Păstrat în config 'dfs_sold' = "sold|data ISO", reîmprospătat la cel mult 10 minute.
+const SOLD_MINIM = 2;    // USD; sub acest sold nu se mai trimit căutări (schimbabil din config 'dfs_sold_minim')
+export async function sold(env, fortat = false) {
+  const v = await cfg(env, "dfs_sold");
+  if (!fortat && v) {
+    const [b, t] = v.split("|");
+    if (Date.now() - Date.parse(t) < 10 * 60e3) return Number(b);
+  }
+  try {
+    const r = await fetch("https://api.dataforseo.com/v3/appendix/user_data", { headers: { authorization: "Basic " + env.DFS_AUTH } });
+    const j = await r.json();
+    const b = j.tasks?.[0]?.result?.[0]?.money?.balance;
+    if (typeof b === "number") { await setCfg(env, "dfs_sold", b + "|" + new Date().toISOString()); return b; }
+    await setCfg(env, "dfs_sold_eroare", JSON.stringify({ sc: j.status_code, sm: j.status_message }).slice(0, 300));
+  } catch (e) {
+    await setCfg(env, "dfs_sold_eroare", String(e).slice(0, 300));
+  }
+  return null; // necunoscut → nu blocăm trimiterea
+}
+
 async function pregateste(env) {
   await env.DB.batch([
     env.DB.prepare("CREATE TABLE IF NOT EXISTS cautare_coada (cui INTEGER PRIMARY KEY, ca REAL, stare INTEGER NOT NULL DEFAULT 0, task_id TEXT, data TEXT)"),
@@ -57,6 +78,10 @@ async function trimite(env) {
   const max = Number(await cfg(env, "dfs_max_zi")) || MAX_ZI_IMPLICIT;
   const loc = Math.min(TRIMITE, max - folosite);
   if (loc <= 0) return;
+  const s = await sold(env);
+  const minim = Number(await cfg(env, "dfs_sold_minim")) || SOLD_MINIM;
+  if (s !== null && s < minim) return setCfg(env, "dfs_oprit", "sold " + s + " USD < " + minim + " USD — trimitere oprită (" + new Date().toISOString() + ")");
+  await setCfg(env, "dfs_oprit", "");
   const q = await env.DB.prepare("SELECT cui FROM cautare_coada WHERE stare = 0 ORDER BY ca DESC LIMIT ?").bind(loc).all();
   if (!q.results.length) return;
   const rez = await env.DB.batch(q.results.map((x) =>
@@ -75,6 +100,7 @@ async function trimite(env) {
   try { j = await dfs(env, "/task_post", taskuri); }
   catch (e) { return setCfg(env, "dfs_eroare", "exceptie: " + String(e).slice(0, 250)); }
   const ok = (j.tasks || []).filter((t) => t.status_code === 20100 && t.data?.tag);
+  if ((j.tasks || []).some((t) => t.status_code === 40200)) await sold(env, true); // fără bani → verifică soldul imediat
   if (!ok.length) await setCfg(env, "dfs_eroare", JSON.stringify({ sc: j.status_code, sm: j.status_message, t: (j.tasks || []).slice(0, 2).map((t) => t.status_code + " " + t.status_message) }).slice(0, 400));
   for (let i = 0; i < ok.length; i += 500)
     await env.DB.batch(ok.slice(i, i + 500).map((t) =>
@@ -209,6 +235,9 @@ export async function cautareAdmin(url, env) {
     plafon_zi: Number(await cfg(env, "dfs_max_zi")) || MAX_ZI_IMPLICIT,
     coada_completa: (await cfg(env, "coada_gata")) === "1",
     dfs_configurat: !!env.DFS_AUTH,
+    sold_usd: await sold(env),
+    sold_minim_usd: Number(await cfg(env, "dfs_sold_minim")) || SOLD_MINIM,
+    trimitere_oprita: (await cfg(env, "dfs_oprit")) || null,
     ultima_eroare_dfs: await cfg(env, "dfs_eroare")
   });
 }
