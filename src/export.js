@@ -57,7 +57,9 @@ export async function exportCsv(url, env) {
             const conf = x.verificat === 1 && x.url, prob = x.verificat === 2 && x.url;
             const onrc = siteOnrc(x.web);
             const site = conf ? x.url : prob ? x.url : onrc;
-            const stare = conf ? "confirmat" : prob ? "probabil" : onrc ? "din_onrc" : "";
+            // site-urile găsite prin căutare web (cautare+/dfs+) pot fi pagini de catalog (ex. bloomberg, serviceuri) → de verificat
+            const cautat = /^(cautare|dfs)\+/.test(x.metoda || "");
+            const stare = (conf || prob) && cautat ? "de_verificat" : conf ? "confirmat" : prob ? "probabil" : onrc ? "din_onrc" : "";
             const sursa = conf || prob ? x.metoda || "" : onrc ? "onrc" : "";
             buf += [x.cui, x.denumire, x.judet, x.localitate, x.caen, site, stare, sursa].map(celula).join(";") + "\r\n";
           }
