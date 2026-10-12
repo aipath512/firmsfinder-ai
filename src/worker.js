@@ -21,9 +21,11 @@ import { site, cron } from "./site.js";
 import { cronCautare, cautareAdmin } from "./cautare.js";
 
 export default {
-  // cron: 6 rulări × 12 firme la fiecare minut (~100.000/zi); Brave plafonat separat la 30/zi
+  // cron: doar căutarea DataForSEO/Brave. Bucla `cron(env)` (lot de 12 firme × 40 la fiecare minut)
+  // e oprită din 12 oct 2026: toate firmele cu bilanț 2024 și CA > 0 au fost deja încercate,
+  // iar fiecare rulare scana inutil tot indexul. Reactivare: Promise.all([cron(env), cronCautare(env)])
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(Promise.all([cron(env), cronCautare(env)]).catch(() => null));
+    ctx.waitUntil(cronCautare(env).catch(() => null));
   },
 
   async fetch(request, env, ctx) {
