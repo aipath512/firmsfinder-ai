@@ -213,7 +213,7 @@ export async function cronCautare(env) {
   if (!env.DFS_AUTH) return;
   const tok = await env.DB.prepare("SELECT valoare FROM config WHERE cheie='admin_token'").first();
   if (!tok) return;
-  const u = "https://1clic-ia.eu/admin/cautare?k=" + tok.valoare;
+  const u = "https://firmsfinder.eu/admin/cautare?k=" + tok.valoare;
   await Promise.all([fetch(u + "&run=1"), ...Array.from({ length: COLECTORI - 1 }, (_, i) => fetch(u + "&col=" + (i + 1)))].map((p) => p.catch(() => null)));
 }
 

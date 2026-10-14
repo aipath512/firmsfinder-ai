@@ -19,10 +19,10 @@ const AIVENTURE = {
 };
 
 export const SITES = {
-  "1clic-ia.eu": {
+  "firmsfinder.eu": {
     ...AIVENTURE,
     marca: "FirmsFinder AI",
-    site: "1clic-ia.eu",
+    site: "firmsfinder.eu",
     scop_formular: "o ofertă personalizată pentru FirmsFinder AI",
     politica_url: "/legal/confidentialitate",
     termeni_url: "/legal/termeni",
@@ -69,8 +69,9 @@ export const SITES = {
   },
 };
 SITES["www.ecbtax.com"] = SITES["ecbtax.com"];
-SITES["firmsfinder.aiventure.ro"] = SITES["1clic-ia.eu"];
-SITES["firmsfinder-ai.aipath512.workers.dev"] = SITES["1clic-ia.eu"];
+SITES["www.firmsfinder.eu"] = SITES["firmsfinder.eu"];
+SITES["firmsfinder.aiventure.ro"] = SITES["firmsfinder.eu"];
+SITES["firmsfinder-ai.aipath512.workers.dev"] = SITES["firmsfinder.eu"];
 
 export const JUDETE_RO = ["Alba","Arad","Argeș","Bacău","Bihor","Bistrița-Năsăud","Botoșani","Brașov","Brăila","București",
   "Buzău","Caraș-Severin","Călărași","Cluj","Constanța","Covasna","Dâmbovița","Dolj","Galați","Giurgiu","Gorj",

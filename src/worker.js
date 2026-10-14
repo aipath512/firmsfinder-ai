@@ -21,6 +21,8 @@ import { site, cron } from "./site.js";
 import { cronCautare, cautareAdmin } from "./cautare.js";
 import { mapsTest } from "./maps.js";
 import { exportCsv } from "./export.js";
+import { firma, datePagina } from "./firma_v1.1_2026-10-14.js";
+import { cauta as cautaFirme } from "./cauta_v1.0_2026-10-14.js";
 
 export default {
   // cron: doar căutarea DataForSEO/Brave. Bucla `cron(env)` (lot de 12 firme × 40 la fiecare minut)
@@ -32,7 +34,7 @@ export default {
 
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    if (url.hostname === "www.1clic-ia.eu") return Response.redirect("https://1clic-ia.eu" + url.pathname + url.search, 301);
+    if (url.hostname === "www.firmsfinder.eu") return Response.redirect("https://firmsfinder.eu" + url.pathname + url.search, 301);
     try {
       if (url.pathname === "/api/caen") return await caen(url, env);
       if (url.pathname === "/api/stari") return await stari(env);
@@ -44,6 +46,9 @@ export default {
       if (url.pathname === "/admin/site") return await site(url, env, ctx);
       if (url.pathname === "/admin/cautare") return await cautareAdmin(url, env);
       if (url.pathname === "/admin/export") return await exportCsv(url, env);
+      if (url.pathname === "/date") return await datePagina(url, env, ctx);
+      if (url.pathname.startsWith("/firma/")) return await firma(url, env);
+      if (url.pathname === "/firme") return await cautaFirme(url, env);
       if (url.pathname === "/termeni.html") return Response.redirect(url.origin + "/legal/termeni", 301);
       if (url.pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /api/\n", { headers: { "content-type": "text/plain" } });
       if (url.pathname.startsWith("/api/")) return json({ eroare: "Adresă necunoscută." }, 404);

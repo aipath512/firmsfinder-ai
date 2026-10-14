@@ -54,7 +54,7 @@ async function ia(url, b, ms = 6000) {
   const ac = new AbortController();
   const t = setTimeout(() => ac.abort(), ms);
   try {
-    const r = await fetch(url, { redirect: "follow", signal: ac.signal, headers: { "user-agent": "Mozilla/5.0 (compatible; FirmsFinderBot/0.4; +https://1clic-ia.eu/legal/confidentialitate)", "accept": "text/html" } });
+    const r = await fetch(url, { redirect: "follow", signal: ac.signal, headers: { "user-agent": "Mozilla/5.0 (compatible; FirmsFinderBot/0.4; +https://firmsfinder.eu/legal/confidentialitate)", "accept": "text/html" } });
     const ct = r.headers.get("content-type") || "";
     if (!r.ok || !ct.includes("html")) return null;
     const html = (await r.text()).slice(0, 600000);
@@ -275,7 +275,7 @@ export async function cron(env) {
   if (new Date().getUTCMinutes() === 0) await env.DB.prepare("DELETE FROM config WHERE cheie='cursor_ca'").run();
   const N = 12, R = 40;
   await Promise.all([...Array(R).keys()].map(i =>
-    fetch(`https://1clic-ia.eu/admin/site?lot=${N}&off=${i * N}&brave=${i === 0 ? 1 : 0}&k=${tok.valoare}`).then(r => r.text()).catch(() => null)));
+    fetch(`https://firmsfinder.eu/admin/site?lot=${N}&off=${i * N}&brave=${i === 0 ? 1 : 0}&k=${tok.valoare}`).then(r => r.text()).catch(() => null)));
 }
 
 export async function site(url, env, ctx) {
