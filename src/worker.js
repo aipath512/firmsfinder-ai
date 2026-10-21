@@ -45,7 +45,7 @@ export default {
       if (url.pathname === "/admin/cautare") return await cautareAdmin(url, env);
       if (url.pathname === "/admin/export") return await exportCsv(url, env);
       if (url.pathname === "/termeni.html") return Response.redirect(url.origin + "/legal/termeni", 301);
-      if (url.pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /api/\n", { headers: { "content-type": "text/plain" } });
+      if (url.pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /api/\n\nSitemap: https://1clic-ia.eu/sitemap.xml\n", { headers: { "content-type": "text/plain" } });
       if (url.pathname.startsWith("/api/")) return json({ eroare: "Adresă necunoscută." }, 404);
     } catch (e) {
       return json({ eroare: "Eroare internă. Încercați din nou." }, 500);
